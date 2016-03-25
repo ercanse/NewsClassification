@@ -1,0 +1,70 @@
+Predicting number of views/comments for news articles on cracked.com based on their headlines and text.
+
+- Collect news articles
+	- Crawl
+		- http://www.cracked.com/funny-articles.html?date_year={year}&date_month={month_number}
+		- Articles with lists (<h2 class="subheading">)
+			- Introduction (<p> inside <div class="articleWrapper">)
+		- Access #comments (<span id=commentCounts>)
+- Process text
+	- Remove stopwords
+- Store news articles
+	- Database (MongoDB)
+	- Collections
+		- Article (author, title, introduction, number of views, number of comments)
+- Select features
+	- Author
+	- Word frequency in title
+	- Introduction text
+- Define classes
+	- Determine highest number of views/comments
+	- Very low, low, medium, high, very high
+- Learn (article -> #views/comments) relationship using different ML algorithms
+	- Naive Bayes classifier (categorical)
+		- Calculate word frequencies
+	- k-NN (categorical)
+	- Linear regression (continuous)
+	- Logistic regression (categorical)
+	- Decision tree
+		- Classification tree (categorical)
+		- Regression tree (continuous)
+- Predict views for new articles
+	- Category (low, medium, high #comments), or amount (x amount of comments)
+- Evaluate
+	- Divide data into training and test data
+	- Check prediction accuracy afterwards
+	- Update models according to results
+
+- When to check whether retrieved news article has already been stored? When retrieving.
+
+Components:
+- Crawler
+	- Phase I: LinkCollector (lxml)
+		- Get links for all articles
+			- Get links for articles for a year, repeatedly
+				- Get links for articles for a month, repeatedly
+					- Request http://www.cracked.com/funny-articles.html?date_year={year}&date_month={month_number}
+						- Get <div id="safePlace" class="contentArchiveModuleRight"> (container for articles)
+						- Loop through all <div class="listEntry"> elements (article element)
+						- <a> is the link, <div class="meta" contains author, date and number of views
+		- Store links for all articles, together with publication date (urls)
+	- Phase II: ArticleParser (lxml)
+		- Retrieve articles for all links
+			- Skip articles that aren't list based
+		- Get author and identify introductory paragraph
+		- Store documents with keys: author, title, introduction, number of views, number of comments (articles_raw)
+- Text processor (NLTK 3.0)
+	- Remove stopwords for all articles
+	- Store processed documents (articles_processed)
+- ML classes (scikit-learn)
+	- Naive Bayes
+		- Trainer
+			- Store training result for each document
+		- Classifier
+- Tester
+
+Resources
+- https://www.quora.com/What-are-some-really-interesting-machine-learning-projects-for-beginners
+- https://www.quora.com/Data-Science/What-are-some-good-toy-problems-in-data-science
+- Kaggle
+- http://stackoverflow.com/questions/3569152/parsing-html-with-lxml
