@@ -22,10 +22,9 @@ def get_links_for_month(year, month):
     for url in urls:
         values = url.values()
         if 'linkImage' in values:
-            links.append(url.values()[1])
+            links.append(url.attrib['href'])
 
-    print(links)
     return links
 
 if __name__ == '__main__':
-    get_links_for_month(2015, 1)
+    print get_links_for_year(2015)
