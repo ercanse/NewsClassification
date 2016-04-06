@@ -68,3 +68,5 @@ Resources
 - https://www.quora.com/Data-Science/What-are-some-good-toy-problems-in-data-science
 - Kaggle
 - http://stackoverflow.com/questions/3569152/parsing-html-with-lxml
+
+libxml2
