@@ -30,7 +30,9 @@ def process_urls(urls):
     :return: list of article retrieved from URLs
     """
     for url in urls:
-        retrieve_main_article_page(url['url'])
+        article_details = retrieve_main_article_page(url['url'])
+        for key, value in article_details.iteritems():
+            print key, value
 
 
 def retrieve_main_article_page(url):
@@ -40,7 +42,8 @@ def retrieve_main_article_page(url):
     """
     print(url)
     article = html_parser.parse(urllib2.urlopen(url))
-    process_article(url, article)
+    article_details = process_article(url, article)
+    return article_details
 
 
 def retrieve_subsequent_article_page(url):
@@ -79,7 +82,14 @@ def process_article(url, article):
             headings.extend(headings_next)
             text.extend(text_next)
 
-    return author, title, headings, text, num_views, num_comments
+    return {
+        'author': author,
+        'title': title,
+        'headings': headings,
+        'text': text,
+        'num_views': num_views,
+        'num_comments': num_comments
+    }
 
 
 def process_article_text(article):
@@ -94,6 +104,7 @@ def process_article_text(article):
         text.append(text_element.text)
 
     return headings, text
+
 
 if __name__ == '__main__':
     urls = load_urls()
