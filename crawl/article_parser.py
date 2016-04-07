@@ -31,7 +31,6 @@ def process_urls(urls):
     """
     for url in urls:
         retrieve_article(url)
-        break
 
 
 def retrieve_article(url):
@@ -39,7 +38,9 @@ def retrieve_article(url):
     :param url: URL of article to retrieve
     :return: retrieved article
     """
-    print(url)
+    print(url['url'])
+    article = html_parser.parse(urllib2.urlopen(url['url']))
+    process_article(article)
 
 
 def process_article(article):
@@ -47,9 +48,17 @@ def process_article(article):
     Parses article and stores its details in the database.
     :param article: article to process
     """
-    pass
+    title = article.xpath('//section[@class="body"]//h1')[0].text
+    author = article.xpath('//a[@class="byline"]')[0].text
+
+    num_views = article.xpath('//span[@id="viewCounts"]')[0].text
+    num_views = num_views.split(' ')[0].replace(',', '')
+
+    num_comments = article.xpath('//section[@class="header subheader"]//span[@id="commentCounts"]')[0].text
+
+    print title, author, num_views, num_comments, '\n'
 
 
 if __name__ == '__main__':
     urls = load_urls()
-    process_urls(urls)
+    process_urls(urls[:5])
