@@ -1,3 +1,7 @@
+"""
+Script to retrieve URLs of articles published on cracked.com and insert them into a MongoDB database.
+"""
+
 import lxml.html as html_parser
 import urllib2
 
