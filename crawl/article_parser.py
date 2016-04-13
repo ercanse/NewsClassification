@@ -4,11 +4,11 @@ Script to load article URLs from the database, retrieve the articles, and extrac
 """
 
 import lxml.html as html_parser
+import traceback
 import urllib2
 
-from optparse import OptionParser
-
 from bson.dbref import DBRef
+from optparse import OptionParser
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
@@ -53,13 +53,21 @@ def process_urls(urls):
 	count = 1
 
 	for url in urls:
+		if 'photoplasty' in url['url']:
+			print 'Skipping photoplasty...'
+			count += 1
+			continue
 		try:
 			print 'Retrieving article %d of %d at URL \'%s\'...' % (count, num_articles, url['url'])
 			article_details = retrieve_article_page(url)
 		except (urllib2.HTTPError, IndexError, UnicodeDecodeError) as e:
 			if isinstance(e, urllib2.HTTPError):
+				print e
+				print traceback.print_exc()
 				print 'Couldn\'t retrieve article at URL \'%s\'.' % url['url']
 			else:
+				print e
+				print traceback.print_exc()
 				print 'Couldn\'t process article at URL \'%s\'.' % url['url']
 			if 'failed' not in url:
 				failed_urls.append(url)
@@ -74,13 +82,22 @@ def process_urls(urls):
 	return articles, failed_urls
 
 
+def download_article_page(url):
+	"""
+	:return:
+	"""
+	request = urllib2.Request(url)
+	request.add_header('User-Agent', 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:45.0) Gecko/20100101 Firefox/45.0')
+	return html_parser.parse(urllib2.urlopen(request))
+
+
 def retrieve_article_page(url):
 	"""
 	Retrieves the article at URL url and calls the data extraction function.
 	:param url: URL of article to retrieve
 	:return: retrieved article
 	"""
-	article = html_parser.parse(urllib2.urlopen(url['url']))
+	article = download_article_page(url['url'])
 	article_details = process_article(url, article)
 	return article_details
 
@@ -91,7 +108,7 @@ def retrieve_subsequent_article_page(url):
 	:param url: URL of article to retrieve
 	:return: retrieved article
 	"""
-	article = html_parser.parse(urllib2.urlopen(url))
+	article = download_article_page(url)
 	headings, text = process_article_text(article)
 	return headings, text
 
@@ -120,7 +137,11 @@ def process_article(url, article):
 		pages = int(pagination_elements[1].text)
 		# Retrieve headings and text on subsequent pages
 		for page_number in range(2, pages + 1):
-			next_page_url = url['url'].replace('.html', '') + '_p%d.html' % page_number
+			if 'html' in url['url']:
+				next_page_url = url['url'].replace('.html', '') + '_p%d.html' % page_number
+			else:
+				next_page_url = url['url'] + '%d' % page_number
+
 			headings_next, text_next = retrieve_subsequent_article_page(next_page_url)
 			headings.extend(headings_next)
 			text.extend(text_next)
@@ -144,12 +165,18 @@ def process_article_text(article):
 	headings = []
 	heading_elements = article.xpath('//section[@class="body"]//section//h2')
 	for sub_heading in heading_elements:
-		headings.append(sub_heading.text)
+		try:
+			headings.append(sub_heading.text)
+		except UnicodeDecodeError:
+			print 'Skipping heading...'
 
 	text = []
 	paragraphs = article.xpath('//section[@class="body"]//section//p')
 	for text_element in paragraphs:
-		text.append(text_element.text)
+		try:
+			text.append(text_element.text)
+		except UnicodeDecodeError:
+			print 'Skipping paragraph...'
 
 	return headings, text
 
