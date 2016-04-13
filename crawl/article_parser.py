@@ -26,7 +26,8 @@ failed_urls_collection = Collection(db, failed_urls_collection_name)
 
 def load_urls(only_failed=False):
 	"""
-	:return: all URL documents in collection 'db_name.collection_name'.
+	:param only_failed: if True, only process URLs from 'failed_urls_collection'
+	:return: list of dicts with URLs
 	"""
 	urls = []
 
@@ -42,8 +43,9 @@ def load_urls(only_failed=False):
 def process_urls(urls):
 	"""
 	Retrieves articles indicated by the URLs in urls and extracts information from them.
-	:param urls: article URLs to process
-	:return: list of articles retrieved from URLs and list of URLs that couldn't be processed correctly
+	:param urls: list of dicts of article URLs to process
+	:return:
+		list of articles retrieved from URLs and list of URLs that couldn't be retrieved or processed properly
 	"""
 	failed_urls = []
 	articles = []
@@ -54,13 +56,11 @@ def process_urls(urls):
 		try:
 			print 'Retrieving article %d of %d at URL \'%s\'...' % (count, num_articles, url['url'])
 			article_details = retrieve_article_page(url)
-		except urllib2.HTTPError:
-			print 'Couldn\'t retrieve article at URL \'%s\'.' % url['url']
-			if 'failed' not in url:
-				failed_urls.append(url)
-				failed_urls_collection.insert_one(url)
-		except (IndexError, UnicodeDecodeError):
-			print 'Couldn\'t process article at URL \'%s\'.' % url['url']
+		except (urllib2.HTTPError, IndexError, UnicodeDecodeError) as e:
+			if isinstance(e, urllib2.HTTPError):
+				print 'Couldn\'t retrieve article at URL \'%s\'.' % url['url']
+			else:
+				print 'Couldn\'t process article at URL \'%s\'.' % url['url']
 			if 'failed' not in url:
 				failed_urls.append(url)
 				failed_urls_collection.insert_one(url)
@@ -101,6 +101,7 @@ def process_article(url, article):
 	Parses article and stores its details in the database.
 	:param url: article URL
 	:param article: article to process
+	:return: dict with data extracted from article
 	"""
 	title = article.xpath('//section[@class="body"]//h1')[0].text
 	author = article.xpath('//a[@class="byline"]')[0].text
@@ -112,9 +113,12 @@ def process_article(url, article):
 
 	headings, text = process_article_text(article)
 
+	# Check whether article has multiple pages
 	pagination_elements = article.xpath('//span[@class="paginationNumber"]')
 	if pagination_elements:
+		# Get total number of pages
 		pages = int(pagination_elements[1].text)
+		# Retrieve headings and text on subsequent pages
 		for page_number in range(2, pages + 1):
 			next_page_url = url['url'].replace('.html', '') + '_p%d.html' % page_number
 			headings_next, text_next = retrieve_subsequent_article_page(next_page_url)
@@ -151,13 +155,13 @@ def process_article_text(article):
 
 
 if __name__ == '__main__':
+	# Create 'only_failed' option
 	parser = OptionParser()
 	parser.add_option(
 		"--only_failed", action="store_true", dest="only_failed", default=False, help="Process only failed urls."
 	)
 	(options, args) = parser.parse_args()
 
-	db = Database(MongoClient(), db_name)
-
+	# Load URLs and retrieve and process the articles at those URLs
 	urls_list = load_urls(only_failed=options.only_failed)
 	articles_list, failed_urls_list = process_urls(urls_list)
