@@ -2,20 +2,17 @@ Predicting number of views/comments for news articles on cracked.com based on th
 
 - Collect news articles
 	- Crawl
-		- http://www.cracked.com/funny-articles.html?date_year={year}&date_month={month_number}
-		- Articles with lists (<h2 class="subheading">)
-			- Introduction (<p> inside <div class="articleWrapper">)
+		- http://www.nu.nl/
 		- Access #comments (<span id=commentCounts>)
 - Process text
 	- Remove stopwords
 - Store news articles
 	- Database (MongoDB)
 	- Collections
-		- Article (author, title, introduction, number of views, number of comments)
+		- Article (title, text, number of comments)
 - Select features
-	- Author
-	- Word frequency in title
-	- Introduction text
+	- Title
+	- Text
 - Define classes
 	- Determine highest number of views/comments
 	- Very low, low, medium, high, very high
@@ -35,27 +32,27 @@ Predicting number of views/comments for news articles on cracked.com based on th
 	- Check prediction accuracy afterwards
 	- Update models according to results
 
-- When to check whether retrieved news article has already been stored? When retrieving.
-
 Components:
+- Data model
+	- Article
+		- Publication date
+		- NU.nl link
+		- NUjij.nl link
+		- Title
+		- Text
+		- Number of comments
 - Crawler
-	- Phase I: LinkCollector (lxml)
-		- Get links for all articles
-			- Get links for articles for a year, repeatedly
-				- Get links for articles for a month, repeatedly
-					- Request http://www.cracked.com/funny-articles.html?date_year={year}&date_month={month_number}
-						- Get <div id="safePlace" class="contentArchiveModuleRight"> (container for articles)
-						- Loop through all <div class="listEntry"> elements (article element)
-						- <a> is the link, <div class="meta" contains author, date and number of views
-		- Store links for all articles, together with publication date (urls)
-	- Phase II: ArticleParser (lxml)
-		- Retrieve articles for all links
-			- Skip articles that aren't list based
-		- Get author and identify introductory paragraph
-		- Store documents with keys: author, title, introduction, number of views, number of comments (articles_raw)
+	- ArticleCollector (lxml)
+		- Get all article URLs from articles
+		- Get all articles with a publication date of at least 24 hours ago
+		- For each article link on the front page not yet processed
+			- Retrieve article
+			- Retrieve NUjij link
+		- For each article in the database saved at least 24 hours ago
+			- Retrieve number of comments using NUjij link
 - Text processor (NLTK 3.0)
-	- Remove stopwords for all articles
-	- Store processed documents (articles_processed)
+	- For each article in the database with #comments != null
+		- Remove stopwords for all articles
 - ML classes (scikit-learn)
 	- Naive Bayes
 		- Trainer
