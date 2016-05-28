@@ -101,7 +101,7 @@ def get_number_of_comments():
     """
     date = datetime.now() - timedelta(days=1)
     articles = collection.find({'published': {'$lt': date}, 'num_comments': None})
-    print 'Retrieving number of comments for %d articles...' % articles.count()
+    print '\nUpdating number of comments for %d articles...' % articles.count()
 
     for article in articles:
         comments_url = article['comments_url']
