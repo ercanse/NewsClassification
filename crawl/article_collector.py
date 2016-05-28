@@ -6,7 +6,7 @@ import lxml.html as html_parser
 import urllib2
 import re
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pymongo import MongoClient
 from pymongo.collection import Collection
@@ -46,7 +46,8 @@ def get_articles():
                 # Skip if already processed
                 if article_url not in retrieved_urls:
                     article = get_article_contents('%s%s' % (base_url, url))
-                    articles.append(article)
+                    if article is not None:
+                        articles.append(article)
     print "Retrieved %d new articles, skipped %d existing ones." \
           % (len(articles), num_links_processed - len(articles))
 
@@ -79,6 +80,9 @@ def get_article_contents(url):
     comments_url = article.xpath(
         '//ul[@class="social-buttons"]//li[@class="nujij"]//a[@class="tracksocial"]'
     )[0].attrib['href']
+    # Skip article if the comments URL couldn't be extracted properly
+    if comments_url.startswith('http://www.nujij.nl/jij.lynkx/?u=http') and 'slideshow' in comments_url:
+        return None
 
     return dict(
         published=published_date,
@@ -95,7 +99,22 @@ def get_number_of_comments():
     Retrieves the number of comments for each article published at least 24 hours ago.
     Updates the corresponding article document with the retrieved number of documents.
     """
-    pass
+    date = datetime.now() - timedelta(days=1)
+    articles = collection.find({'published': {'$lt': date}, 'num_comments': None})
+    print 'Retrieving number of comments for %d articles...' % articles.count()
+
+    for article in articles:
+        comments_url = article['comments_url']
+        # Delete article if the comments URL
+        if comments_url.startswith('http://www.nujij.nl/jij.lynkx/?u=http') and 'slideshow' in comments_url:
+            collection.delete_one({'_id': article['_id']})
+        else:
+            # Retrieve comments page
+            comments_page = html_parser.parse(urllib2.urlopen(comments_url))
+            comments_text = comments_page.find('//span[@class="bericht-reacties"]').text.strip()
+            # Update article with the number of comments it has received
+            num_comments = int(comments_text.split(' ')[0])
+            collection.update_one({'_id': article['_id']}, {'$set': {'num_comments': num_comments}})
 
 
 def save_articles(articles):
@@ -114,6 +133,7 @@ def run():
     """
     articles = get_articles()
     save_articles(articles)
+    get_number_of_comments()
 
 
 if __name__ == '__main__':
