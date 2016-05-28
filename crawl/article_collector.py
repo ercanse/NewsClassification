@@ -14,6 +14,9 @@ from pymongo.database import Database
 
 db_name = 'nu'
 collection_name = 'articles'
+db = Database(MongoClient(), db_name)
+collection = Collection(db, collection_name)
+
 base_url = 'http://www.nu.nl'
 
 
@@ -22,6 +25,11 @@ def get_articles():
     Retrieves all articles not yet in the database and inserts them into the database.
     """
     print "Retrieving articles..."
+    # Determine URLs already processed
+    retrieved_articles = collection.find({}, {'news_url': 1})
+    retrieved_urls = [article['news_url'] for article in retrieved_articles]
+
+    num_links_processed = 0
     articles = []
     front_page = html_parser.parse(urllib2.urlopen(base_url))
 
@@ -31,10 +39,16 @@ def get_articles():
         values = url.values()
         if len(values) == 2:
             url = values[0]
+            # Check whether URL belongs to a news item
             if 'advertorial' not in url and re.match('/.+/\d+/.+', url):
-                article = get_article_contents('%s%s' % (base_url, url))
-                articles.append(article)
-    print "Retrieved %d articles." % (len(articles))
+                num_links_processed += 1
+                article_url = '%s%s' % (base_url, url)
+                # Skip if already processed
+                if article_url not in retrieved_urls:
+                    article = get_article_contents('%s%s' % (base_url, url))
+                    articles.append(article)
+    print "Retrieved %d new articles, skipped %d existing ones." \
+          % (len(articles), num_links_processed - len(articles))
 
     return articles
 
@@ -87,14 +101,20 @@ def get_number_of_comments():
 def save_articles(articles):
     """
     Inserts articles into the database.
-    :param articles: dict containing articles
+    :param articles: list of articles
     """
-    db = Database(MongoClient(), db_name)
-    collection = Collection(db, collection_name)
-    collection.insert_many(articles)
-    print "Inserted %d articles into '%s.%s'." % (len(articles), db_name, collection_name)
+    if isinstance(articles, list) and len(articles) > 0:
+        collection.insert_many(articles)
+        print "Inserted %d articles into '%s.%s'." % (len(articles), db_name, collection_name)
+
+
+def run():
+    """
+    Retrieves articles and saves them to the database.
+    """
+    articles = get_articles()
+    save_articles(articles)
 
 
 if __name__ == '__main__':
-    articles_dict = get_articles()
-    save_articles(articles_dict)
+    run()
