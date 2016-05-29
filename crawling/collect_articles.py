@@ -117,7 +117,7 @@ def extract_article_contents(article):
         '//ul[@class="social-buttons"]//li[@class="nujij"]//a[@class="tracksocial"]'
     )[0].attrib['href']
     # Skip article if the comments URL couldn't be extracted properly
-    if comments_url.startswith('http://www.nujij.nl/jij.lynkx/?u=http') and 'slideshow' in comments_url:
+    if not comments_url_is_valid(comments_url):
         print 'Couldn\'t find comments URL for article.'
         return None
 
@@ -144,7 +144,7 @@ def get_number_of_comments():
     for article in articles:
         comments_url = article['comments_url']
         # Delete article if the comments URL is invalid
-        if comments_url.startswith('http://www.nujij.nl/jij.lynkx/?u=http') and 'slideshow' in comments_url:
+        if not comments_url_is_valid(comments_url):
             print 'Deleting article with invalid comments URL...'
             collection.delete_one({'_id': article['_id']})
         else:
@@ -170,6 +170,14 @@ def get_number_of_comments():
         print 'Updated comments for %d articles.' % num_comments_updated
 
 
+def comments_url_is_valid(comments_url):
+    """
+    :param comments_url: URL of page for commenting to validate
+    :return: True only if comments_url belongs to a valid discussion page
+    """
+    return not(comments_url.startswith('http://www.nujij.nl/jij.lynkx/?u=http') or 'slideshow' in comments_url)
+
+
 def download_page(url):
     """
     :param url: URL of page to retrieve
@@ -190,16 +198,11 @@ def save_articles(articles):
     """
     if isinstance(articles, list) and len(articles) > 0:
         collection.insert_many(articles)
-        print "Inserted %d articles into '%s.%s'." % (len(articles), db_name, collection_name)
-
-
-def run():
-    """
-    Retrieves articles and saves them to the database.
-    """
-    collect_articles()
-    get_number_of_comments()
+        print "Inserted %d articles into '%s.%s'.\n" % (len(articles), db_name, collection_name)
 
 
 if __name__ == '__main__':
-    run()
+    # Retrieve articles and insert them into the database
+    collect_articles()
+    # For articles that are old enough, update the number of comments they have received
+    get_number_of_comments()
