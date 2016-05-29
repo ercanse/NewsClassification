@@ -1,5 +1,6 @@
 """
-Script to retrieve news articles from NU.nl and insert them into a MongoDB database.
+Script to retrieve news articles from NU.nl, insert them into a MongoDB database,
+and update them with the number of comments they have received.
 """
 
 import lxml.html as html_parser
@@ -21,8 +22,7 @@ base_url = 'http://www.nu.nl'
 
 
 def collect_articles():
-    """
-    :return:
+    """ Retrieves articles that aren't yet in the database and saves them to the database.
     """
     retrieved_urls = get_retrieved_urls()
     front_page = get_front_page()
@@ -50,6 +50,8 @@ def get_front_page():
 
 def get_articles(page, retrieved_urls):
     """
+    :param page: page containing URLs of news articles
+    :param retrieved_urls: URLs of articles already in the database
     :return: Retrieves all articles on 'page', the URLs of which are not in 'retrieved_urls'.
     """
     num_links_processed = 0
@@ -78,16 +80,15 @@ def get_articles(page, retrieved_urls):
 
 def process_article(url):
     """
-    :param url:
-    :return:
+    :param url: URL of article to process
+    :return: dict containing article contents
     """
     print 'Retrieving article from %s...' % url
-
     # Retrieve article
     article = download_page(url)
     if article is None:
         return article
-
+    # Extract contents
     article_contents = extract_article_contents(article)
     if article_contents is not None:
         article_contents['news_url'] = url
@@ -96,8 +97,8 @@ def process_article(url):
 
 def extract_article_contents(article):
     """
-    :param article:
-    :return:
+    :param article: article to extract contents of
+    :return: dict containing article contents
     """
     # Extract publication date
     published = article.xpath('//span[@class="published"]//span[@class="small"]')[0].text.strip()
@@ -118,7 +119,7 @@ def extract_article_contents(article):
     )[0].attrib['href']
     # Skip article if the comments URL couldn't be extracted properly
     if not comments_url_is_valid(comments_url):
-        print 'Couldn\'t find comments URL for article.'
+        print 'Could not find comments URL for article.'
         return None
 
     return dict(
@@ -136,6 +137,7 @@ def get_number_of_comments():
     Updates the corresponding article document with the retrieved number of documents.
     """
     date = datetime.now() - timedelta(days=1)
+    # Get articles older than 24 hours which haven't yet had their number of comments updated
     articles = collection.find({'published': {'$lt': date}, 'num_comments': None})
     print 'Updating number of comments for %d articles...' % articles.count()
 
@@ -156,7 +158,7 @@ def get_number_of_comments():
             # Search for element containing number of comments
             comments_element = comments_page.find('//span[@class="bericht-reacties"]')
             if comments_element is None:
-                print 'Couldn\'t find comments, deleting article...'
+                print 'Could not find comments, deleting article...'
                 collection.delete_one({'_id': article['_id']})
                 continue
 
