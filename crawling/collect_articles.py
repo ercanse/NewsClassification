@@ -31,7 +31,9 @@ def get_articles():
 
     num_links_processed = 0
     articles = []
-    front_page = html_parser.parse(urllib2.urlopen(base_url))
+    front_page = download_page(base_url)
+    if front_page is None:
+        exit()
 
     # Article URLs are contained in <a> elements inside <div class="column-content">
     url_elements = front_page.xpath('//div[@class="column-content"]//a')
@@ -62,7 +64,10 @@ def get_article_contents(url):
     print 'Retrieving article from %s...' % url
 
     # Retrieve article
-    article = html_parser.parse(urllib2.urlopen(url))
+    article = download_page(url)
+    if article is None:
+        return article
+
     # Extract publication date
     published = article.xpath('//span[@class="published"]//span[@class="small"]')[0].text.strip()
     published_date = datetime.strptime(published, '%d-%m-%y %H:%M')
@@ -103,6 +108,8 @@ def get_number_of_comments():
     articles = collection.find({'published': {'$lt': date}, 'num_comments': None})
     print '\nUpdating number of comments for %d articles...' % articles.count()
 
+    num_comments_updated = 0
+
     for article in articles:
         comments_url = article['comments_url']
         # Delete article if the comments URL
@@ -110,11 +117,38 @@ def get_number_of_comments():
             collection.delete_one({'_id': article['_id']})
         else:
             # Retrieve comments page
-            comments_page = html_parser.parse(urllib2.urlopen(comments_url))
-            comments_text = comments_page.find('//span[@class="bericht-reacties"]').text.strip()
+            print 'Retrieving comments from %s...' % comments_url
+            comments_page = download_page(comments_url)
+            if comments_page is None:
+                continue
+
+            comments_element = comments_page.find('//span[@class="bericht-reacties"]')
+            if comments_element is None:
+                print 'Couldn\'t find comments, deleting article...'
+                collection.delete_one({'_id': article['_id']})
+                continue
+
+            comments_text = comments_element.text.strip()
             # Update article with the number of comments it has received
             num_comments = int(comments_text.split(' ')[0])
             collection.update_one({'_id': article['_id']}, {'$set': {'num_comments': num_comments}})
+            num_comments_updated += 1
+
+    if num_comments_updated > 0:
+        print 'Updated comments for %d articles.' % num_comments_updated
+
+
+def download_page(url):
+    """
+    :param url: URL of page to retrieve
+    :return: web page at URL url
+    """
+    page = None
+    try:
+        page = html_parser.parse(urllib2.urlopen(url))
+    except urllib2.URLError:
+        print 'Couldn\'t access %s.' % url
+    return page
 
 
 def save_articles(articles):
