@@ -101,22 +101,16 @@ def extract_article_contents(article):
     :return: dict containing article contents
     """
     # Extract publication date
-    published = article.xpath('//span[@class="published"]//span[@class="small"]')[0].text.strip()
+    published = article.find('//span[@class="published"]//span[@class="small"]').text.strip()
     published_date = datetime.strptime(published, '%d-%m-%y %H:%M')
     # Extract title
-    title = article.xpath('//div[@class="title"]//h1[@class="fluid"]')[0].text.strip()
+    title = article.find('//div[@class="title"]//h1[@class="fluid"]').text.strip()
     # Extract article text by combining the excerpt and the body
-    text = ""
-    text += article.xpath('//div[@class="item-excerpt"]')[0].text.strip()
-    text_elements = article.xpath('//div[@class="zone"]//div[@class="block-content"]//p')
-    for text_element in text_elements:
-        element_text = text_element.text
-        if element_text:
-            text += element_text.strip()
+    text = extract_article_text(article)
     # Extract the NUjij link used for commenting
-    comments_url = article.xpath(
+    comments_url = article.find(
         '//ul[@class="social-buttons"]//li[@class="nujij"]//a[@class="tracksocial"]'
-    )[0].attrib['href']
+    ).attrib['href']
     # Skip article if the comments URL couldn't be extracted properly
     if not comments_url_is_valid(comments_url):
         print 'Could not find comments URL for article.'
@@ -129,6 +123,21 @@ def extract_article_contents(article):
         text=text,
         num_comments=None
     )
+
+
+def extract_article_text(article):
+    """
+    :param article: article to extract text of
+    :return: string containing all text of article
+    """
+    text = ""
+    text += article.find('//div[@class="item-excerpt"]').text.strip()
+    text_elements = article.xpath('//div[@class="zone"]//div[@class="block-content"]//p')
+    for text_element in text_elements:
+        element_text = text_element.text
+        if element_text:
+            text += element_text.strip()
+    return text
 
 
 def get_number_of_comments():
@@ -177,7 +186,7 @@ def comments_url_is_valid(comments_url):
     :param comments_url: URL of page for commenting to validate
     :return: True only if comments_url belongs to a valid discussion page
     """
-    return not(comments_url.startswith('http://www.nujij.nl/jij.lynkx/?u=http') or 'slideshow' in comments_url)
+    return not (comments_url.startswith('http://www.nujij.nl/jij.lynkx/?u=http') or 'slideshow' in comments_url)
 
 
 def download_page(url):
