@@ -44,8 +44,13 @@ def get_front_page():
     """
     :return: page at URL 'base_url'
     """
+    front_page = None
     print "Checking for articles on %s..." % base_url
-    return download_page(base_url)
+    try:
+        front_page = download_page(base_url)
+    except urllib2.URLError:
+        print 'Could not access %s.' % base_url
+    return front_page
 
 
 def get_articles(page, retrieved_urls):
@@ -85,9 +90,11 @@ def process_article(url):
     """
     print 'Retrieving article from %s...' % url
     # Retrieve article
-    article = download_page(url)
-    if article is None:
-        return article
+    try:
+        article = download_page(url)
+    except urllib2.URLError:
+        print 'Could not retrieve article from %s.' % url
+        return None
     # Extract contents
     article_contents = extract_article_contents(article)
     if article_contents is not None:
@@ -111,18 +118,19 @@ def extract_article_contents(article):
     comments_url = article.find(
         '//ul[@class="social-buttons"]//li[@class="nujij"]//a[@class="tracksocial"]'
     ).attrib['href']
-    # Skip article if the comments URL couldn't be extracted properly
-    if not comments_url_is_valid(comments_url):
-        print 'Could not find comments URL for article.'
-        return None
 
-    return dict(
-        published=published_date,
-        comments_url=comments_url,
-        title=title,
-        text=text,
-        num_comments=None
-    )
+    # Check whether the comments URL is valid
+    if comments_url.startswith('http://www.nujij.nl/jij.lynkx/?u=http') and 'slideshow' in comments_url:
+        print 'Could not retrieve comments URL.'
+        return None
+    else:
+        return dict(
+            published=published_date,
+            comments_url=comments_url,
+            title=title,
+            text=text,
+            num_comments=None
+        )
 
 
 def extract_article_text(article):
@@ -130,8 +138,7 @@ def extract_article_text(article):
     :param article: article to extract text of
     :return: string containing all text of article
     """
-    text = ""
-    text += article.find('//div[@class="item-excerpt"]').text.strip()
+    text = article.find('//div[@class="item-excerpt"]').text.strip()
     text_elements = article.xpath('//div[@class="zone"]//div[@class="block-content"]//p')
     for text_element in text_elements:
         element_text = text_element.text
@@ -151,42 +158,30 @@ def get_number_of_comments():
     print 'Updating number of comments for %d articles...' % articles.count()
 
     num_comments_updated = 0
-
     for article in articles:
         comments_url = article['comments_url']
-        # Delete article if the comments URL is invalid
-        if not comments_url_is_valid(comments_url):
-            print 'Deleting article with invalid comments URL...'
-            collection.delete_one({'_id': article['_id']})
-        else:
-            # Retrieve comments page
-            print 'Retrieving comments from %s...' % comments_url
+        # Retrieve comments page
+        print 'Retrieving comments from %s...' % comments_url
+        try:
             comments_page = download_page(comments_url)
-            if comments_page is None:
-                continue
-            # Search for element containing number of comments
-            comments_element = comments_page.find('//span[@class="bericht-reacties"]')
-            if comments_element is None:
-                print 'Could not find comments, deleting article...'
-                collection.delete_one({'_id': article['_id']})
-                continue
+        except urllib2.URLError:
+            print 'Could not retrieve comments page from %s.' % comments_url
+            continue
+        # Search for element containing number of comments
+        comments_element = comments_page.find('//span[@class="bericht-reacties"]')
+        if comments_element is None:
+            print 'Could not find comments, deleting article...'
+            collection.delete_one({'_id': article['_id']})
+            continue
 
-            # Update article with the number of comments it has received
-            comments_text = comments_element.text.strip()
-            num_comments = int(comments_text.split(' ')[0])
-            collection.update_one({'_id': article['_id']}, {'$set': {'num_comments': num_comments}})
-            num_comments_updated += 1
+        # Update article with the number of comments it has received
+        comments_text = comments_element.text.strip()
+        num_comments = int(comments_text.split(' ')[0])
+        collection.update_one({'_id': article['_id']}, {'$set': {'num_comments': num_comments}})
+        num_comments_updated += 1
 
     if num_comments_updated > 0:
         print 'Updated comments for %d articles.' % num_comments_updated
-
-
-def comments_url_is_valid(comments_url):
-    """
-    :param comments_url: URL of page for commenting to validate
-    :return: True only if comments_url belongs to a valid discussion page
-    """
-    return not (comments_url.startswith('http://www.nujij.nl/jij.lynkx/?u=http') or 'slideshow' in comments_url)
 
 
 def download_page(url):
@@ -194,12 +189,7 @@ def download_page(url):
     :param url: URL of page to retrieve
     :return: web page at URL url
     """
-    page = None
-    try:
-        page = html_parser.parse(urllib2.urlopen(url))
-    except urllib2.URLError:
-        print 'Could not access page at URL %s.' % url
-    return page
+    return html_parser.parse(urllib2.urlopen(url))
 
 
 def save_articles(articles):
