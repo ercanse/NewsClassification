@@ -28,8 +28,8 @@ def preprocess():
         print e
         exit()
 
-    processed_articles = processed_collection.find({}, {'article_id': 1})
-    processed_ids = [processed_article['article'].id for processed_article in processed_articles]
+    processed_articles = processed_collection.find({'article_id': {'$exists': 1}}, {'article_id': 1})
+    processed_ids = [processed_article['article_id'].id for processed_article in processed_articles]
     print 'Skipping %d preprocessed articles...' % len(processed_ids)
 
     articles = collection.find({'_id': {'$nin': processed_ids}})
