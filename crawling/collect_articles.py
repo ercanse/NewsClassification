@@ -64,8 +64,8 @@ def get_articles(page, retrieved_urls):
     # Article URLs are contained in <a> elements inside <div class="column-content">
     url_elements = page.xpath('//div[@class="column-content"]//a')
 
-    for url in url_elements:
-        values = url.values()
+    for url_element in url_elements:
+        values = url_element.values()
         if len(values) == 2:
             url = values[0]
             # Check whether URL belongs to a news item
