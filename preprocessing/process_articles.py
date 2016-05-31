@@ -44,8 +44,9 @@ def preprocess():
         article['article_id'] = bson.DBRef(processed_collection_name, article['_id'])
 
         processed_articles.append(article)
-    processed_collection.insert_many(processed_articles)
-    print 'Saved preprocessed articles.'
+    if processed_articles:
+        processed_collection.insert_many(processed_articles)
+        print 'Saved preprocessed articles.'
 
 
 def preprocess_text(text, stop_words):
