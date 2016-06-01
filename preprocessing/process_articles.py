@@ -24,8 +24,8 @@ processed_collection = Collection(db, processed_collection_name)
 def get_articles_to_preprocess():
     """
     :return:
-        articles in collection that aren't yet referenced by a preprocessed version in processed_collection
-        and have had their number of comments updated
+        articles in collection that 1) aren't yet referenced by a preprocessed version in processed_collection
+        and 2) have had their number of comments updated
     """
     processed_articles = processed_collection.find({'article_id': {'$exists': 1}}, {'article_id': 1})
     processed_ids = [processed_article['article_id'].id for processed_article in processed_articles]
@@ -48,13 +48,10 @@ def preprocess(articles):
     print 'Preprocessing %d articles...' % articles.count()
     processed_articles = []
     for article in articles:
-        title = preprocess_text(article.get('title', ''), stop_words)
-        text = preprocess_text(article.get('text', ''), stop_words)
-
-        article['title'] = title
-        article['text'] = text
+        article['title'] = preprocess_text(article.get('title', ''), stop_words)
+        article['text'] = preprocess_text(article.get('text', ''), stop_words)
+        # Add reference to original article
         article['article_id'] = bson.DBRef(processed_collection_name, article['_id'])
-
         processed_articles.append(article)
     if processed_articles:
         processed_collection.insert_many(processed_articles)
