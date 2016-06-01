@@ -50,6 +50,7 @@ def get_front_page():
         front_page = download_page(base_url)
     except urllib2.URLError:
         print 'Could not access %s.' % base_url
+        exit()
     return front_page
 
 
@@ -57,15 +58,15 @@ def get_articles(page, retrieved_urls):
     """
     :param page: page containing URLs of news articles
     :param retrieved_urls: URLs of articles already in the database
-    :return: Retrieves all articles on 'page', the URLs of which are not in 'retrieved_urls'.
+    :return: Retrieves all articles on 'page' the URLs of which are not in 'retrieved_urls'.
     """
     num_links_processed = 0
     articles = []
     # Article URLs are contained in <a> elements inside <div class="column-content">
     url_elements = page.xpath('//div[@class="column-content"]//a')
 
-    for url in url_elements:
-        values = url.values()
+    for url_element in url_elements:
+        values = url_element.values()
         if len(values) == 2:
             url = values[0]
             # Check whether URL belongs to a news item
@@ -112,7 +113,7 @@ def extract_article_contents(article):
     published_date = datetime.strptime(published, '%d-%m-%y %H:%M')
     # Extract title
     title = article.find('//div[@class="title"]//h1[@class="fluid"]').text.strip()
-    # Extract article text by combining the excerpt and the body
+    # Extract article text
     text = extract_article_text(article)
     # Extract the NUjij link used for commenting
     comments_url = article.find(
@@ -138,7 +139,9 @@ def extract_article_text(article):
     :param article: article to extract text of
     :return: string containing all text of article
     """
+    # Extract excerpt
     text = article.find('//div[@class="item-excerpt"]').text.strip()
+    # Extract text
     text_elements = article.xpath('//div[@class="zone"]//div[@class="block-content"]//p')
     for text_element in text_elements:
         element_text = text_element.text
