@@ -48,11 +48,13 @@ def preprocess(articles):
     print 'Preprocessing %d articles...' % articles.count()
     processed_articles = []
     for article in articles:
-        article['title'] = preprocess_text(article.get('title', ''), stop_words)
-        article['text'] = preprocess_text(article.get('text', ''), stop_words)
-        # Add reference to original article
-        article['article_id'] = bson.DBRef(processed_collection_name, article['_id'])
-        processed_articles.append(article)
+        processed_article = dict(
+            article_id=bson.DBRef(collection_name, article['_id']),
+            title=preprocess_text(article.get('title', ''), stop_words),
+            text=preprocess_text(article.get('text', ''), stop_words),
+            num_comments=article.get('num_comments', 0)
+        )
+        processed_articles.append(processed_article)
     if processed_articles:
         processed_collection.insert_many(processed_articles)
         print 'Saved preprocessed articles.'
