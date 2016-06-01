@@ -21,18 +21,30 @@ collection = Collection(db, collection_name)
 processed_collection = Collection(db, processed_collection_name)
 
 
-def preprocess():
+def get_articles_to_preprocess():
+    """
+    :return:
+        articles in collection that aren't yet referenced by a preprocessed version in processed_collection
+        and have had their number of comments updated
+    """
+    processed_articles = processed_collection.find({'article_id': {'$exists': 1}}, {'article_id': 1})
+    processed_ids = [processed_article['article_id'].id for processed_article in processed_articles]
+    print 'Skipping %d preprocessed articles...' % len(processed_ids)
+    return collection.find({'_id': {'$nin': processed_ids}, 'num_comments': {'$ne': None}})
+
+
+def preprocess(articles):
+    """
+    Applies preprocessing on articles using Dutch stopwords.
+    Saves the preprocessed documents to processed_collection.
+    :param articles: articles to preprocess
+    """
     try:
         stop_words = stopwords.words('dutch')
     except LookupError as e:
         print e
         exit()
 
-    processed_articles = processed_collection.find({'article_id': {'$exists': 1}}, {'article_id': 1})
-    processed_ids = [processed_article['article_id'].id for processed_article in processed_articles]
-    print 'Skipping %d preprocessed articles...' % len(processed_ids)
-
-    articles = collection.find({'_id': {'$nin': processed_ids}})
     print 'Preprocessing %d articles...' % articles.count()
     processed_articles = []
     for article in articles:
@@ -51,13 +63,14 @@ def preprocess():
 
 def preprocess_text(text, stop_words):
     """
-    :param text:
-    :param stop_words:
-    :return:
+    :param text: text to preprocess
+    :param stop_words: list of stopwords to filter text by
+    :return: a lowercase version of text, split on punctuation marks and filtered by stop_words
     """
     text = text.lower()
     text = re.split('\W+', text)
     return ' '.join(word for word in text if word not in stop_words)
 
+
 if __name__ == '__main__':
-    preprocess()
+    preprocess(get_articles_to_preprocess())
