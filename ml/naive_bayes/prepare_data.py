@@ -9,7 +9,7 @@ articles_processed_collection_name = 'articles_processed'
 
 db = Database(MongoClient(), db_name)
 processed_collection = Collection(db, articles_processed_collection_name)
-naive_bayes_collection = Collection(db, 'vocabulary')
+naive_bayes_collection = Collection(db, 'naive_bayes')
 feature_vectors_collection = Collection(db, 'feature_vectors')
 
 
@@ -17,11 +17,14 @@ def create_vocabulary(articles):
     """
     Creates a set of all words occurring in all articles.
     """
+    print 'Creating vocabulary from %d articles...' % len(articles)
     vocabulary = []
     for article in articles:
         vocabulary.extend(article.get('title', '').split(' '))
         vocabulary.extend(article.get('text', '').split(' '))
-    return sorted(list(set(vocabulary)))
+    vocabulary = sorted(list(set(vocabulary)))
+    print 'Created vocabulary consisting of %d terms.' % len(vocabulary)
+    return vocabulary
 
 
 def create_feature_vectors(vocabulary, articles):
@@ -29,6 +32,7 @@ def create_feature_vectors(vocabulary, articles):
     Creates a vector v of size 'len(vocabulary)' for each article.
     The value of the i-th element in v is the frequency with which the i-th term in vocabulary occurs in the article.
     """
+    print 'Creating feature vectors for %d articles...' % len(articles)
     feature_vectors = []
     for article in articles:
         # Determine the frequency of each term in article
@@ -43,10 +47,17 @@ def create_feature_vectors(vocabulary, articles):
             'feature_vector': feature_vector,
             'num_comments': article.get('num_comments', 0)
         })
+    print 'Created %d feature vectors.' % len(feature_vectors)
     return feature_vectors
 
 
 if __name__ == '__main__':
-    articles = processed_collection.find()
+    articles = [article for article in processed_collection.find()]
+    # Create and save vocabulary
     vocabulary = create_vocabulary(articles)
-    create_feature_vectors(vocabulary, articles)
+    print 'Inserting vocabulary into database...'
+    naive_bayes_collection.insert_one({'type': 'vocabulary', 'vocabulary': vocabulary})
+    # Create and save feature vectors
+    feature_vectors = create_feature_vectors(vocabulary, articles)
+    print 'Inserting feature vectors into databae...'
+    feature_vectors_collection.insert_many(feature_vectors)

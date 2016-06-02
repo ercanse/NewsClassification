@@ -4,7 +4,7 @@ from unittest import TestCase
 from ml.naive_bayes.prepare_data import create_vocabulary, create_feature_vectors
 
 
-class TestCreateVocabularyAndClasses(TestCase):
+class TestPrepareData(TestCase):
     def setUp(self):
         self.articles = [
             {'_id': ObjectId(), 'title': 'a news article', 'text': 'very interesting content'},
