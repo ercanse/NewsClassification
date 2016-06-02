@@ -59,5 +59,5 @@ if __name__ == '__main__':
     naive_bayes_collection.insert_one({'type': 'vocabulary', 'vocabulary': vocabulary})
     # Create and save feature vectors
     feature_vectors = create_feature_vectors(vocabulary, articles)
-    print 'Inserting feature vectors into databae...'
+    print 'Inserting feature vectors into database...'
     feature_vectors_collection.insert_many(feature_vectors)
