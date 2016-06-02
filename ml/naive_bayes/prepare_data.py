@@ -30,11 +30,13 @@ def create_feature_vectors(vocabulary, articles):
     """
     feature_vectors = []
     for article in articles:
+        # Determine the frequency of each term in article
         text = article.get('title').split(' ') + article.get('text').split(' ')
         term_counts = Counter(text)
+        # Represent article as vector of term occurrences
         feature_vector = [0] * len(vocabulary)
-        for term, count in term_counts.iteritems():
-            feature_vector[vocabulary.index(term)] = count
+        for index, term in enumerate(vocabulary):
+            feature_vector[index] = term_counts.get(term, 0)
         feature_vectors.append(feature_vector)
     return feature_vectors
 
