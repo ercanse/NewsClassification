@@ -1,15 +1,16 @@
+from bson import DBRef
 from collections import Counter
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
 
 db_name = 'nu'
-articles_collection_name = 'articles_processed'
-naive_bayes_collection_name = 'naive_bayes'
+articles_processed_collection_name = 'articles_processed'
 
 db = Database(MongoClient(), db_name)
-processed_collection = Collection(db, articles_collection_name)
-naive_bayes_collection = Collection(db, naive_bayes_collection_name)
+processed_collection = Collection(db, articles_processed_collection_name)
+naive_bayes_collection = Collection(db, 'vocabulary')
+feature_vectors_collection = Collection(db, 'feature_vectors')
 
 
 def create_vocabulary(articles):
@@ -37,7 +38,11 @@ def create_feature_vectors(vocabulary, articles):
         feature_vector = [0] * len(vocabulary)
         for index, term in enumerate(vocabulary):
             feature_vector[index] = term_counts.get(term, 0)
-        feature_vectors.append(feature_vector)
+        feature_vectors.append({
+            'article_processed_id': DBRef(articles_processed_collection_name, article['_id']),
+            'feature_vector': feature_vector,
+            'num_comments': article.get('num_comments', 0)
+        })
     return feature_vectors
 
 
