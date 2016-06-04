@@ -4,11 +4,16 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.cross_validation import train_test_split
 
 
 def load_feature_vectors_and_classes(db_name):
     """
+    :param db_name: name of database to use
     :return:
+        - list of feature vectors
+        - dictionary where the keys are the class labels and the values are dictionaries of the form
+        {start: <integer>, end: <integer>}
     """
     db = Database(MongoClient(), db_name)
     collection_names = db.collection_names()
@@ -17,13 +22,16 @@ def load_feature_vectors_and_classes(db_name):
         exit()
 
     classes = Collection(db, 'naive_bayes').find_one({'type': 'classes'})
-    feature_vector_documents = Collection(db, 'feature_vectors').find()
+    feature_vectors = [doc for doc in Collection(db, 'feature_vectors').find()]
 
-    return feature_vector_documents, classes['classes']
+    return feature_vectors, classes['classes']
 
 
 def get_training_vectors_and_target_values(feature_vector_documents, classes):
     """
+    :param feature_vector_documents:
+    :param classes:
+    :return:
     """
     feature_vectors = []
     target_values = []
@@ -46,20 +54,27 @@ def get_training_vectors_and_target_values(feature_vector_documents, classes):
 
 def train_classifier(feature_vectors, target_values):
     """
-    :return:
+    Trains a multinomial Naive Bayes classifier on the given feature vectors and target values.
+    :return: trained MultinomialNB instance
     """
     if not isinstance(feature_vectors, list):
         raise TypeError("'feature_vectors' must be a list.")
     if not isinstance(target_values, list):
         raise TypeError("'target_values' must be a list.")
-    classifier = MultinomialNB()
-    classifier.fit(feature_vectors, target_values)
-    print classifier
+
+    # Split data into a training set (80%) and a test set (20%)
+    feature_vectors_train, feature_vectors_test, target_values_train, target_values_test = train_test_split(
+        feature_vectors, target_values, test_size=0.2)
+    # Train classifier on training set
+    classifier = MultinomialNB().fit(feature_vectors_train, target_values_train)
+    # Evaluate classifier on test set
+    print classifier.score(feature_vectors_test, target_values_test)
+    return classifier
 
 
 if __name__ == '__main__':
     parser = ArgumentParser(
-        description="Trains a multinomial Naive Bayes classifier using feature vectors from the specified database.\n",
+        description="Trains a multinomial Naive Bayes classifier using feature vectors from a given database.\n",
         formatter_class=RawTextHelpFormatter
     )
     parser.add_argument(
@@ -70,4 +85,4 @@ if __name__ == '__main__':
 
     feature_vectors, classes = load_feature_vectors_and_classes(args.db_name)
     training_vectors, target_values = get_training_vectors_and_target_values(feature_vectors, classes)
-    train_classifier(training_vectors, target_values)
+    classifier = train_classifier(training_vectors, target_values)
