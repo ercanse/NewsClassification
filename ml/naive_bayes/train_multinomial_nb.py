@@ -3,8 +3,8 @@ from argparse import RawTextHelpFormatter
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
-from sklearn.naive_bayes import MultinomialNB
 from sklearn.cross_validation import train_test_split
+from sklearn.naive_bayes import MultinomialNB
 
 
 def load_feature_vectors_and_classes(db_name):
@@ -22,16 +22,18 @@ def load_feature_vectors_and_classes(db_name):
         exit()
 
     classes = Collection(db, 'naive_bayes').find_one({'type': 'classes'})
-    feature_vectors = [doc for doc in Collection(db, 'feature_vectors').find()]
+    feature_vectors = [feature_vector for feature_vector in Collection(db, 'feature_vectors').find()]
 
     return feature_vectors, classes['classes']
 
 
-def get_training_vectors_and_target_values(feature_vector_documents, classes):
+def get_target_values(feature_vector_documents, classes):
     """
-    :param feature_vector_documents:
-    :param classes:
+    :param feature_vector_documents: list of documents containing feature vectors and number of comments
+    :param classes: dictionary containing a 'class label -> comment interval' mapping
     :return:
+        - list of feature vectors
+        - list of target values, with the i-th element corresponding to the target value of the i-th feature vector
     """
     feature_vectors = []
     target_values = []
@@ -68,7 +70,12 @@ def train_classifier(feature_vectors, target_values):
     # Train classifier on training set
     classifier = MultinomialNB().fit(feature_vectors_train, target_values_train)
     # Evaluate classifier on test set
-    print classifier.score(feature_vectors_test, target_values_test)
+    print 'Classifier score on test set: ', classifier.score(feature_vectors_test, target_values_test)
+
+    print 'Empirical log probability for each class:\n', classifier.class_log_prior_
+    print 'Number of samples encountered for each class:\n', classifier.class_count_
+    print 'Number of samples encountered for each (class, feature):\n', classifier.feature_count_
+
     return classifier
 
 
@@ -84,5 +91,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     feature_vectors, classes = load_feature_vectors_and_classes(args.db_name)
-    training_vectors, target_values = get_training_vectors_and_target_values(feature_vectors, classes)
+    training_vectors, target_values = get_target_values(feature_vectors, classes)
     classifier = train_classifier(training_vectors, target_values)
