@@ -1,9 +1,11 @@
+import numpy
+
 from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
-from sklearn.cross_validation import train_test_split
+from sklearn.cross_validation import cross_val_score, StratifiedKFold, train_test_split
 from sklearn.naive_bayes import MultinomialNB
 
 
@@ -15,6 +17,7 @@ def load_feature_vectors_and_classes(db_name):
         - dictionary where the keys are the class labels and the values are dictionaries of the form
         {start: <integer>, end: <integer>}
     """
+    print 'Loading feature vectors and target classes...'
     db = Database(MongoClient(), db_name)
     collection_names = db.collection_names()
     if not ('naive_bayes' in collection_names and 'feature_vectors' in collection_names):
@@ -27,7 +30,7 @@ def load_feature_vectors_and_classes(db_name):
     return feature_vectors, classes['classes']
 
 
-def get_target_values(feature_vector_documents, classes):
+def get_feature_vectors_and_target_values(feature_vector_documents, classes):
     """
     :param feature_vector_documents: list of documents containing feature vectors and number of comments
     :param classes: dictionary containing a 'class label -> comment interval' mapping
@@ -35,6 +38,7 @@ def get_target_values(feature_vector_documents, classes):
         - list of feature vectors
         - list of target values, with the i-th element corresponding to the target value of the i-th feature vector
     """
+    print 'Preparing %d feature vectors...' % len(feature_vector_documents)
     feature_vectors = []
     target_values = []
 
@@ -51,32 +55,54 @@ def get_target_values(feature_vector_documents, classes):
         feature_vectors.append(feature_vector_document['feature_vector'])
         target_values.append(get_class_for_number_of_comments(feature_vector_document['num_comments']))
 
-    return feature_vectors, target_values
+    target_values_arr = numpy.array(target_values)
+    target_values_arr.reshape(-1, 1)
+    return numpy.array(feature_vectors), target_values_arr
 
 
-def train_classifier(feature_vectors, target_values):
+def evaluate_classifier_using_fixed_split(feature_vectors, target_values):
     """
     Trains a multinomial Naive Bayes classifier on the given feature vectors and target values.
-    :return: trained MultinomialNB instance
+    Uses a fixed training-test dataset split.
+    :param feature_vectors:
+    :param target_values:
     """
-    if not isinstance(feature_vectors, list):
-        raise TypeError("'feature_vectors' must be a list.")
-    if not isinstance(target_values, list):
-        raise TypeError("'target_values' must be a list.")
+    if not isinstance(feature_vectors, numpy.ndarray):
+        raise TypeError("'feature_vectors' must be a NumPy ndarray.")
+    if not isinstance(target_values, numpy.ndarray):
+        raise TypeError("'target_values' must be a NumPy ndarray.")
 
+    print '\nEvaluating classifier using a fixed training-test split...'
     # Split data into a training set (80%) and a test set (20%)
     feature_vectors_train, feature_vectors_test, target_values_train, target_values_test = train_test_split(
         feature_vectors, target_values, test_size=0.2)
     # Train classifier on training set
     classifier = MultinomialNB().fit(feature_vectors_train, target_values_train)
     # Evaluate classifier on test set
-    print 'Classifier score on test set: ', classifier.score(feature_vectors_test, target_values_test)
+    print 'Classifier score: ', classifier.score(feature_vectors_test, target_values_test)
 
-    print 'Empirical log probability for each class:\n', classifier.class_log_prior_
-    print 'Number of samples encountered for each class:\n', classifier.class_count_
-    print 'Number of samples encountered for each (class, feature):\n', classifier.feature_count_
 
-    return classifier
+def evaluate_classifier_using_cross_validation(feature_vectors, target_values):
+    """
+    Trains a multinomial Naive Bayes classifier on the given feature vectors and target values.
+    Evaluates classifier using 10-fold stratified cross-validation.
+    :param feature_vectors:
+    :param target_values:
+    """
+    print '\nEvaluating classifier using 10-fold stratified cross-validation...'
+    k_fold = StratifiedKFold(target_values, n_folds=10, shuffle=True)
+    score = cross_val_score(MultinomialNB(), feature_vectors, target_values, cv=k_fold)
+    print 'Classifier score on 10 runs:\n', score
+    print 'Mean classifier score during cross-validation:', score.mean()
+
+
+def train_classifier(feature_vectors, target_values):
+    """
+    :param feature_vectors:
+    :param target_values:
+    :return: MultinomialNB instance trained on the full dataset
+    """
+    return MultinomialNB().fit(feature_vectors, target_values)
 
 
 if __name__ == '__main__':
@@ -90,6 +116,11 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
+    # Prepare data for learning
     feature_vectors, classes = load_feature_vectors_and_classes(args.db_name)
-    training_vectors, target_values = get_target_values(feature_vectors, classes)
+    training_vectors, target_values = get_feature_vectors_and_target_values(feature_vectors, classes)
+    # Evaluate classifier performance
+    evaluate_classifier_using_fixed_split(training_vectors, target_values)
+    evaluate_classifier_using_cross_validation(training_vectors, target_values)
+    # Train classifier on whole dataset
     classifier = train_classifier(training_vectors, target_values)
