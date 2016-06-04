@@ -24,16 +24,16 @@ def load_feature_vectors_and_classes(db_name):
         print 'Database missing collections needed to train classifier on.'
         exit()
 
-    classes = Collection(db, 'naive_bayes').find_one({'type': 'classes'})
+    target_classes = Collection(db, 'naive_bayes').find_one({'type': 'classes'})
     feature_vectors = [feature_vector for feature_vector in Collection(db, 'feature_vectors').find()]
 
-    return feature_vectors, classes['classes']
+    return feature_vectors, target_classes['classes']
 
 
-def get_feature_vectors_and_target_values(feature_vector_documents, classes):
+def get_feature_vectors_and_target_values(feature_vector_documents, target_classes):
     """
     :param feature_vector_documents: list of documents containing feature vectors and number of comments
-    :param classes: dictionary containing a 'class label -> comment interval' mapping
+    :param target_classes: dictionary containing a 'target class label -> comment interval' mapping
     :return:
         - list of feature vectors
         - list of target values, with the i-th element corresponding to the target value of the i-th feature vector
@@ -47,7 +47,7 @@ def get_feature_vectors_and_target_values(feature_vector_documents, classes):
         :param num_comments: number of comments to determine class for
         :return: class within which the specified number of comments belongs to ('very low', 'high', etc.)
         """
-        for class_name, comments_range in classes.iteritems():
+        for class_name, comments_range in target_classes.iteritems():
             if comments_range['start'] <= num_comments <= comments_range['end']:
                 return class_name
 
@@ -66,32 +66,33 @@ def evaluate_classifier_using_fixed_split(feature_vectors, target_values):
     :param feature_vectors: feature vectors to use for evaluation
     :param target_values: labels representing values for each feature vector
     """
-    if not isinstance(feature_vectors, numpy.ndarray):
-        raise TypeError("'feature_vectors' must be a NumPy ndarray.")
-    if not isinstance(target_values, numpy.ndarray):
-        raise TypeError("'target_values' must be a NumPy ndarray.")
+    check_vectors_and_values(feature_vectors, target_values)
 
     print '\nEvaluating classifier using a fixed training-test split...'
     # Split data into a training set (80%) and a test set (20%)
     feature_vectors_train, feature_vectors_test, target_values_train, target_values_test = train_test_split(
         feature_vectors, target_values, test_size=0.2)
     # Train classifier on training set
-    classifier = MultinomialNB().fit(feature_vectors_train, target_values_train)
+    mnb_classifier = MultinomialNB().fit(feature_vectors_train, target_values_train)
     # Evaluate classifier on test set
-    print 'Classifier score: ', classifier.score(feature_vectors_test, target_values_test)
+    print 'Classifier score: %f' % mnb_classifier.score(feature_vectors_test, target_values_test)
 
 
-def evaluate_classifier_using_cross_validation(feature_vectors, target_values):
+def evaluate_classifier_using_cross_validation(feature_vectors, target_values, n_folds=10):
     """
-    Evaluates the multinomial Naive Bayes classifier using 10-fold stratified cross-validation.
+    Evaluates the multinomial Naive Bayes classifier using n-fold stratified cross-validation.
     :param feature_vectors: feature vectors to use for evaluation
     :param target_values: labels representing values for each feature vector
+    :param n_folds: number of folds to use for cross-validation
     """
+    check_vectors_and_values(feature_vectors, target_values)
+    if not isinstance(n_folds, int):
+        raise TypeError("'n_folds' must be an integer.")
+
     print '\nEvaluating classifier using 10-fold stratified cross-validation...'
-    k_fold = StratifiedKFold(target_values, n_folds=10, shuffle=True)
+    k_fold = StratifiedKFold(target_values, n_folds=n_folds, shuffle=True)
     score = cross_val_score(MultinomialNB(), feature_vectors, target_values, cv=k_fold)
-    print 'Classifier score on 10 runs:\n', score
-    print 'Mean classifier score during cross-validation:', score.mean()
+    print 'Classifier score on 10 runs:\n%s\nMean cross-validation score: %f' % (score, score.mean())
 
 
 def train_classifier(feature_vectors, target_values):
@@ -101,6 +102,18 @@ def train_classifier(feature_vectors, target_values):
     :return: MultinomialNB instance trained on the full dataset
     """
     return MultinomialNB().fit(feature_vectors, target_values)
+
+
+def check_vectors_and_values(feature_vectors, target_values):
+    """
+    Checks whether feature_vectors and target_values are NumPy nd-arrays.
+    :param feature_vectors: array of feature vectors
+    :param target_values: array of target values
+    """
+    if not isinstance(feature_vectors, numpy.ndarray):
+        raise TypeError("'feature_vectors' must be a NumPy ndarray.")
+    if not isinstance(target_values, numpy.ndarray):
+        raise TypeError("'target_values' must be a NumPy ndarray.")
 
 
 if __name__ == '__main__':
@@ -115,10 +128,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Prepare data for learning
-    feature_vectors, classes = load_feature_vectors_and_classes(args.db_name)
-    training_vectors, target_values = get_feature_vectors_and_target_values(feature_vectors, classes)
+    vectors, classes = load_feature_vectors_and_classes(args.db_name)
+    vectors, values = get_feature_vectors_and_target_values(vectors, classes)
     # Evaluate classifier performance
-    evaluate_classifier_using_fixed_split(training_vectors, target_values)
-    evaluate_classifier_using_cross_validation(training_vectors, target_values)
+    evaluate_classifier_using_fixed_split(vectors, values)
+    evaluate_classifier_using_cross_validation(vectors, values)
     # Train classifier on whole dataset
-    classifier = train_classifier(training_vectors, target_values)
+    classifier = train_classifier(vectors, values)
