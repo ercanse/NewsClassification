@@ -6,15 +6,55 @@ from pymongo.database import Database
 from sklearn.naive_bayes import MultinomialNB
 
 
-def train_classifier():
+def load_feature_vectors_and_classes(db_name):
     """
+    :return:
     """
     db = Database(MongoClient(), db_name)
-    naive_bayes_collection = Collection(db, 'naive_bayes')
-    feature_vectors_collection = Collection(db, 'feature_vectors')
+    collection_names = db.collection_names()
+    if not ('naive_bayes' in collection_names and 'feature_vectors' in collection_names):
+        print 'Database missing collections needed to train classifier on.'
+        exit()
 
-    classes = naive_bayes_collection.find_one({'type': 'classes'})
-    feature_vectors = feature_vectors_collection.find()
+    classes = Collection(db, 'naive_bayes').find_one({'type': 'classes'})
+    feature_vector_documents = Collection(db, 'feature_vectors').find()
+
+    return feature_vector_documents, classes['classes']
+
+
+def get_training_vectors_and_target_values(feature_vector_documents, classes):
+    """
+    """
+    feature_vectors = []
+    target_values = []
+
+    def get_class_for_number_of_comments(num_comments):
+        """
+        :param num_comments:
+        :return:
+        """
+        for class_name, comments_range in classes.iteritems():
+            if comments_range['start'] <= num_comments <= comments_range['end']:
+                return class_name
+
+    for feature_vector_document in feature_vector_documents:
+        feature_vectors.append(feature_vector_document['feature_vector'])
+        target_values.append(get_class_for_number_of_comments(feature_vector_document['num_comments']))
+
+    return feature_vectors, target_values
+
+
+def train_classifier(feature_vectors, target_values):
+    """
+    :return:
+    """
+    if not isinstance(feature_vectors, list):
+        raise TypeError("'feature_vectors' must be a list.")
+    if not isinstance(target_values, list):
+        raise TypeError("'target_values' must be a list.")
+    classifier = MultinomialNB()
+    classifier.fit(feature_vectors, target_values)
+    print classifier
 
 
 if __name__ == '__main__':
@@ -27,8 +67,7 @@ if __name__ == '__main__':
         help='Name of database to use'
     )
     args = parser.parse_args()
-    db_name = args.db_name
-    # Load list F of feature vectors
-    # Load target classes C
-    # Create list of length l, where the l[i] = C[F[i][num_comments]]
-    pass
+
+    feature_vectors, classes = load_feature_vectors_and_classes(args.db_name)
+    training_vectors, target_values = get_training_vectors_and_target_values(feature_vectors, classes)
+    train_classifier(training_vectors, target_values)
