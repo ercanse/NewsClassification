@@ -44,8 +44,8 @@ def get_feature_vectors_and_target_values(feature_vector_documents, classes):
 
     def get_class_for_number_of_comments(num_comments):
         """
-        :param num_comments:
-        :return:
+        :param num_comments: number of comments to determine class for
+        :return: class within which the specified number of comments belongs to ('very low', 'high', etc.)
         """
         for class_name, comments_range in classes.iteritems():
             if comments_range['start'] <= num_comments <= comments_range['end']:
@@ -62,10 +62,9 @@ def get_feature_vectors_and_target_values(feature_vector_documents, classes):
 
 def evaluate_classifier_using_fixed_split(feature_vectors, target_values):
     """
-    Trains a multinomial Naive Bayes classifier on the given feature vectors and target values.
-    Uses a fixed training-test dataset split.
-    :param feature_vectors:
-    :param target_values:
+    Evaluates the multinomial Naive Bayes classifier using a fixed 80-20 training-test split of the dataset.
+    :param feature_vectors: feature vectors to use for evaluation
+    :param target_values: labels representing values for each feature vector
     """
     if not isinstance(feature_vectors, numpy.ndarray):
         raise TypeError("'feature_vectors' must be a NumPy ndarray.")
@@ -84,10 +83,9 @@ def evaluate_classifier_using_fixed_split(feature_vectors, target_values):
 
 def evaluate_classifier_using_cross_validation(feature_vectors, target_values):
     """
-    Trains a multinomial Naive Bayes classifier on the given feature vectors and target values.
-    Evaluates classifier using 10-fold stratified cross-validation.
-    :param feature_vectors:
-    :param target_values:
+    Evaluates the multinomial Naive Bayes classifier using 10-fold stratified cross-validation.
+    :param feature_vectors: feature vectors to use for evaluation
+    :param target_values: labels representing values for each feature vector
     """
     print '\nEvaluating classifier using 10-fold stratified cross-validation...'
     k_fold = StratifiedKFold(target_values, n_folds=10, shuffle=True)
@@ -98,8 +96,8 @@ def evaluate_classifier_using_cross_validation(feature_vectors, target_values):
 
 def train_classifier(feature_vectors, target_values):
     """
-    :param feature_vectors:
-    :param target_values:
+    :param feature_vectors: feature vectors to train on
+    :param target_values: labels representing values for each feature vector
     :return: MultinomialNB instance trained on the full dataset
     """
     return MultinomialNB().fit(feature_vectors, target_values)
