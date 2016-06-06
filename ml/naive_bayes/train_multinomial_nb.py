@@ -25,20 +25,28 @@ def load_feature_vectors_and_classes(db_name):
         exit()
 
     target_classes = Collection(db, 'naive_bayes').find_one({'type': 'classes'})
-    feature_vectors = [feature_vector for feature_vector in Collection(db, 'feature_vectors').find()]
+    if 'classes' not in target_classes:
+        raise KeyError("'target_classes' must contain a 'classes' key.")
 
+    feature_vectors = list(Collection(db, 'feature_vectors').find())
     return feature_vectors, target_classes['classes']
 
 
-def get_feature_vectors_and_target_values(feature_vector_documents, target_classes):
+def get_feature_vectors_and_target_values(feature_vector_dicts, target_classes):
     """
-    :param feature_vector_documents: list of documents containing feature vectors and number of comments
+    :param feature_vector_dicts: list of dicts containing feature vectors and number of comments
     :param target_classes: dictionary containing a 'target class label -> comment interval' mapping
     :return:
-        - list of feature vectors
-        - list of target values, with the i-th element corresponding to the target value of the i-th feature vector
+        - NumPy ndarray containing feature vectors
+        - NumPy ndarray containing target values, with the i-th element corresponding to
+          the target value of the i-th feature vector
     """
-    print 'Preparing %d feature vectors...' % len(feature_vector_documents)
+    if not isinstance(feature_vector_dicts, list):
+        raise TypeError("'feature_vector_dicts' must be a list.")
+    if not isinstance(target_classes, dict):
+        raise TypeError("'target_classes' must be a dict.")
+
+    print 'Preparing %d feature vectors...' % len(feature_vector_dicts)
     feature_vectors = []
     target_values = []
 
@@ -51,12 +59,12 @@ def get_feature_vectors_and_target_values(feature_vector_documents, target_class
             if comments_range['start'] <= num_comments <= comments_range['end']:
                 return class_name
 
-    for feature_vector_document in feature_vector_documents:
+    for feature_vector_document in feature_vector_dicts:
         feature_vectors.append(feature_vector_document['feature_vector'])
+        # Add the class label corresponding to 'feature_vector' to 'target_values'
         target_values.append(get_class_for_number_of_comments(feature_vector_document['num_comments']))
 
     target_values_arr = numpy.array(target_values)
-    target_values_arr.reshape(-1, 1)
     return numpy.array(feature_vectors), target_values_arr
 
 
@@ -75,7 +83,9 @@ def evaluate_classifier_using_fixed_split(feature_vectors, target_values):
     # Train classifier on training set
     mnb_classifier = MultinomialNB().fit(feature_vectors_train, target_values_train)
     # Evaluate classifier on test set
-    print 'Classifier score: %f' % mnb_classifier.score(feature_vectors_test, target_values_test)
+    score = mnb_classifier.score(feature_vectors_test, target_values_test)
+    print 'Classifier score: %f' % score
+    return score
 
 
 def evaluate_classifier_using_cross_validation(feature_vectors, target_values, n_folds=10):
@@ -93,6 +103,7 @@ def evaluate_classifier_using_cross_validation(feature_vectors, target_values, n
     k_fold = StratifiedKFold(target_values, n_folds=n_folds, shuffle=True)
     score = cross_val_score(MultinomialNB(), feature_vectors, target_values, cv=k_fold)
     print 'Classifier score on 10 runs:\n%s\nMean cross-validation score: %f' % (score, score.mean())
+    return score
 
 
 def train_classifier(feature_vectors, target_values):
