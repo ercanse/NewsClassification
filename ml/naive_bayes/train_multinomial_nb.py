@@ -68,41 +68,50 @@ def get_feature_vectors_and_target_values(feature_vector_dicts, target_classes):
     return numpy.array(feature_vectors), target_values_arr
 
 
-def evaluate_classifier_using_fixed_split(feature_vectors, target_values):
+def evaluate_classifier_using_repeated_fixed_split(feature_vectors, target_values, iterations=25):
     """
     Evaluates the multinomial Naive Bayes classifier using a fixed 80-20 training-test split of the dataset.
+    Repeats this 'iterations' times and returns the average score.
     :param feature_vectors: feature vectors to use for evaluation
     :param target_values: labels representing values for each feature vector
+    :param iterations: number of evaluations to run
     """
     check_vectors_and_values(feature_vectors, target_values)
 
-    print '\nEvaluating classifier using a fixed training-test split...'
+    print '\nEvaluating classifier with %d runs using a fixed training-test split...' % iterations
     # Split data into a training set (80%) and a test set (20%)
     feature_vectors_train, feature_vectors_test, target_values_train, target_values_test = train_test_split(
         feature_vectors, target_values, test_size=0.2)
-    # Train classifier on training set
-    mnb_classifier = MultinomialNB().fit(feature_vectors_train, target_values_train)
     # Evaluate classifier on test set
-    score = mnb_classifier.score(feature_vectors_test, target_values_test)
-    print 'Classifier score: %f' % score
+    scores = [
+        MultinomialNB().fit(feature_vectors_train, target_values_train).score(feature_vectors_test, target_values_test)
+        for _ in xrange(iterations)]
+
+    score = sum(scores) / float(len(scores))
+    print 'Mean score: %f' % score
     return score
 
 
-def evaluate_classifier_using_cross_validation(feature_vectors, target_values, n_folds=10):
+def evaluate_classifier_using_repeated_cross_validation(feature_vectors, target_values, n_folds=10, iterations=25):
     """
     Evaluates the multinomial Naive Bayes classifier using n-fold stratified cross-validation.
+    Repeats this 'iterations' times and returns the average score.
     :param feature_vectors: feature vectors to use for evaluation
     :param target_values: labels representing values for each feature vector
     :param n_folds: number of folds to use for cross-validation
+    :param iterations: number of evaluations to run
     """
     check_vectors_and_values(feature_vectors, target_values)
     if not isinstance(n_folds, int):
         raise TypeError("'n_folds' must be an integer.")
 
-    print '\nEvaluating classifier using 10-fold stratified cross-validation...'
+    print '\nEvaluating classifier with %d runs of %d-fold stratified cross-validation...' % (iterations, n_folds)
     k_fold = StratifiedKFold(target_values, n_folds=n_folds, shuffle=True)
-    score = cross_val_score(MultinomialNB(), feature_vectors, target_values, cv=k_fold)
-    print 'Classifier score on 10 runs:\n%s\nMean cross-validation score: %f' % (score, score.mean())
+    scores = [cross_val_score(MultinomialNB(), feature_vectors, target_values, cv=k_fold).mean()
+              for _ in xrange(iterations)]
+
+    score = sum(scores) / float(len(scores))
+    print 'Mean cross-validation score: %f' % score
     return score
 
 
@@ -142,7 +151,7 @@ if __name__ == '__main__':
     vectors, classes = load_feature_vectors_and_classes(args.db_name)
     vectors, values = get_feature_vectors_and_target_values(vectors, classes)
     # Evaluate classifier performance
-    evaluate_classifier_using_fixed_split(vectors, values)
-    evaluate_classifier_using_cross_validation(vectors, values)
+    evaluate_classifier_using_repeated_fixed_split(vectors, values)
+    evaluate_classifier_using_repeated_cross_validation(vectors, values)
     # Train classifier on whole dataset
     classifier = train_classifier(vectors, values)
