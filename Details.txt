@@ -46,7 +46,7 @@ Components:
 		- Get all article URLs from articles
 		- Get all articles with a publication date of at least 24 hours ago
 		- For each article link on the front page not yet processed
-			- Retrieve article
+			- Retrieve article (special characters!)
 			- Retrieve NUjij link
 		- For each article in the database saved at least 24 hours ago
 			- Retrieve number of comments using NUjij link

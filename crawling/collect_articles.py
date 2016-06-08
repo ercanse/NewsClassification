@@ -44,14 +44,12 @@ def get_front_page():
     """
     :return: page at URL 'base_url'
     """
-    front_page = None
     print "Checking for articles on %s..." % base_url
     try:
-        front_page = download_page(base_url)
+        return download_page(base_url)
     except urllib2.URLError:
         print 'Could not access %s.' % base_url
         exit()
-    return front_page
 
 
 def get_articles(page, retrieved_urls):
