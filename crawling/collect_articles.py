@@ -8,7 +8,6 @@ import urllib2
 import re
 
 from datetime import datetime, timedelta
-
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
@@ -151,7 +150,7 @@ def extract_article_text(article):
 def get_number_of_comments():
     """
     Retrieves the number of comments for each article published at least 24 hours ago.
-    Updates the corresponding article document with the retrieved number of documents.
+    Updates the corresponding article document with the retrieved number of comments.
     """
     date = datetime.now() - timedelta(days=1)
     # Get articles older than 24 hours which haven't yet had their number of comments updated
