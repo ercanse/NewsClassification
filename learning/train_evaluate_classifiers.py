@@ -1,6 +1,6 @@
 """
-Trains a multinomial Naive Bayes classifier on the feature vectors and target values loaded from the database.
-Evaluates the trained classifier using cross-validation.
+Trains a multinomial Naive Bayes classifier and a linear SVM.
+Evaluates the trained classifiers using cross-validation.
 """
 import numpy
 
@@ -23,6 +23,7 @@ def evaluate_classifier_using_repeated_cross_validation(classifier, feature_vect
     :param target_values: labels representing values for each feature vector
     :param n_folds: number of folds to use for cross-validation
     :param iterations: number of evaluations to run
+    :return: mean cross-validation score of all runs
     """
     if not (isinstance(classifier, MultinomialNB) or isinstance(classifier, LinearSVC)):
         raise TypeError("'classifier' must be MultinomialNB or LinearSVC.")
@@ -30,7 +31,7 @@ def evaluate_classifier_using_repeated_cross_validation(classifier, feature_vect
     if not isinstance(n_folds, int):
         raise TypeError("'n_folds' must be an integer.")
 
-    print '\nEvaluating %s classifier with %d runs of %d-fold stratified cross-validation...' %\
+    print '\nEvaluating %s classifier with %d runs of %d-fold stratified cross-validation...' % \
           (classifier, iterations, n_folds)
     scores = []
     for _ in xrange(iterations):
@@ -56,7 +57,8 @@ def check_vectors_and_values(feature_vectors, target_values):
 
 if __name__ == '__main__':
     parser = ArgumentParser(
-        description="Trains a multinomial Naive Bayes classifier using feature vectors from a given database.\n",
+        description="Trains a multinomial Naive Bayes classifier and a linear SVM "
+                    "using feature vectors and target values from a given database.\n",
         formatter_class=RawTextHelpFormatter
     )
     parser.add_argument(
