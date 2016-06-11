@@ -2,7 +2,7 @@ import numpy
 
 from unittest import TestCase
 
-from learning.naive_bayes.train_multinomial_nb import get_feature_vectors_and_target_values
+from learning.prepare_data import get_feature_vectors_and_target_values
 
 
 class TestPrepareData(TestCase):
