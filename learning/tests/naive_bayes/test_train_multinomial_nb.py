@@ -2,9 +2,9 @@ import numpy
 
 from unittest import TestCase
 
-from ml.naive_bayes.train_multinomial_nb import get_feature_vectors_and_target_values
-from ml.naive_bayes.train_multinomial_nb import evaluate_classifier_using_repeated_fixed_split
-from ml.naive_bayes.train_multinomial_nb import evaluate_classifier_using_repeated_cross_validation
+from learning.naive_bayes.train_multinomial_nb import get_feature_vectors_and_target_values
+from learning.naive_bayes.train_multinomial_nb import evaluate_classifier_using_fixed_split
+from learning.naive_bayes.train_multinomial_nb import evaluate_classifier_using_repeated_cross_validation
 
 
 class TestTrainMultinomialNB(TestCase):
@@ -31,8 +31,8 @@ class TestTrainMultinomialNB(TestCase):
         _, values = get_feature_vectors_and_target_values(self.feature_vectors_dicts, self.target_classes)
         self.assertListEqual(['very_low', 'low'], values.tolist())
 
-    def test_evaluate_classifier_using_repeated_fixed_split_returns_float(self):
-        score = evaluate_classifier_using_repeated_fixed_split(self.feature_vectors, self.target_values)
+    def test_evaluate_classifier_using_fixed_split_returns_float(self):
+        score = evaluate_classifier_using_fixed_split(self.feature_vectors, self.target_values)
         self.assertIsInstance(score, float)
 
     def test_evaluate_classifier_using_repeated_cross_validation_returns_float(self):
