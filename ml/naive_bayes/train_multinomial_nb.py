@@ -1,3 +1,22 @@
+"""
+Trains and evaluates a multinomial Naive Bayes classifier.
+1)
+Two inputs are loaded using 'load_feature_vectors_and_classes':
+- List of dictionaries of the form:
+    [{feature_vector: [0, 3, 1, ...], num_comments: [10]},
+     {feature_vector: [1, 0, 0, ...], num_comments: [20]]
+- Dict of target classes of the form:
+    {'very_low': {'start': 0, 'end': 10), 'low': {'start': 11, 'end': 20), 'medium': {'start': 21, 'end': 30),
+    'high': {'start': 31, 'end': 40), 'very_high': {'start': 41, 'end': 50),}
+2)
+Based on these, it creates a list of feature vectors and target values using 'get_feature_vectors_and_target_values'.
+With the examples given above, this would look like:
+- [[0, 3, 1, ...], [1, 0, 0, ...]]
+- ['very_low', 'low']
+3)
+Finally, it trains a multinomial Naive Bayes classifier using the vectors and values
+and evaluates it using cross-validation.
+"""
 import numpy
 
 from argparse import ArgumentParser
@@ -46,7 +65,7 @@ def get_feature_vectors_and_target_values(feature_vector_dicts, target_classes):
     if not isinstance(target_classes, dict):
         raise TypeError("'target_classes' must be a dict.")
 
-    print 'Preparing %d feature vectors of size %d each...'\
+    print 'Preparing %d feature vectors of size %d each...' \
           % (len(feature_vector_dicts), len(feature_vector_dicts[0]['feature_vector']))
     feature_vectors = []
     target_values = []
@@ -69,31 +88,26 @@ def get_feature_vectors_and_target_values(feature_vector_dicts, target_classes):
     return numpy.array(feature_vectors), target_values_arr
 
 
-def evaluate_classifier_using_repeated_fixed_split(feature_vectors, target_values, iterations=25):
+def evaluate_classifier_using_repeated_fixed_split(feature_vectors, target_values):
     """
     Evaluates the multinomial Naive Bayes classifier using a fixed 80-20 training-test split of the dataset.
-    Repeats this 'iterations' times and returns the average score.
     :param feature_vectors: feature vectors to use for evaluation
     :param target_values: labels representing values for each feature vector
-    :param iterations: number of evaluations to run
     """
     check_vectors_and_values(feature_vectors, target_values)
 
-    print '\nEvaluating classifier with %d runs using a fixed training-test split...' % iterations
+    print '\nEvaluating classifier using a fixed training-test split...'
     # Split data into a training set (80%) and a test set (20%)
     feature_vectors_train, feature_vectors_test, target_values_train, target_values_test = train_test_split(
         feature_vectors, target_values, test_size=0.2)
     # Evaluate classifier on test set
-    scores = [
-        MultinomialNB().fit(feature_vectors_train, target_values_train).score(feature_vectors_test, target_values_test)
-        for _ in xrange(iterations)]
-
-    score = sum(scores) / float(len(scores))
+    mnb = MultinomialNB().fit(feature_vectors_train, target_values_train)
+    score = mnb.score(feature_vectors_test, target_values_test)
     print 'Mean score: %f' % score
     return score
 
 
-def evaluate_classifier_using_repeated_cross_validation(feature_vectors, target_values, n_folds=10, iterations=25):
+def evaluate_classifier_using_repeated_cross_validation(feature_vectors, target_values, n_folds=10, iterations=10):
     """
     Evaluates the multinomial Naive Bayes classifier using n-fold stratified cross-validation.
     Repeats this 'iterations' times and returns the average score.
@@ -107,9 +121,10 @@ def evaluate_classifier_using_repeated_cross_validation(feature_vectors, target_
         raise TypeError("'n_folds' must be an integer.")
 
     print '\nEvaluating classifier with %d runs of %d-fold stratified cross-validation...' % (iterations, n_folds)
-    k_fold = StratifiedKFold(target_values, n_folds=n_folds, shuffle=True)
-    scores = [cross_val_score(MultinomialNB(), feature_vectors, target_values, cv=k_fold).mean()
-              for _ in xrange(iterations)]
+    scores = []
+    for _ in xrange(iterations):
+        k_fold = StratifiedKFold(target_values, n_folds=n_folds, shuffle=True)
+        scores.append(cross_val_score(MultinomialNB(), feature_vectors, target_values, cv=k_fold).mean())
 
     score = sum(scores) / float(len(scores))
     print 'Mean cross-validation score: %f' % score

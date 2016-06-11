@@ -13,7 +13,7 @@ class TestTrainMultinomialNB(TestCase):
                                       {'feature_vector': [1, 0], 'num_comments': 20}]
         self.target_classes = {'very_low': {'start': 0, 'end': 10}, 'low': {'start': 11, 'end': 20}}
         self.feature_vectors = numpy.array([[0, 0], [0, 1], [1, 0], [1, 1]])
-        self.target_values = numpy.array(['very_low', 'low', 'medium', 'high'])
+        self.target_values = numpy.array(['very_low', 'very_low', 'medium', 'medium'])
 
     def test_get_feature_vectors_and_target_values_returns_ndarray_of_vectors(self):
         vectors, _ = get_feature_vectors_and_target_values(self.feature_vectors_dicts, self.target_classes)
@@ -32,7 +32,7 @@ class TestTrainMultinomialNB(TestCase):
         self.assertListEqual(['very_low', 'low'], values.tolist())
 
     def test_evaluate_classifier_using_repeated_fixed_split_returns_float(self):
-        score = evaluate_classifier_using_repeated_fixed_split(self.feature_vectors, self.target_values, iterations=1)
+        score = evaluate_classifier_using_repeated_fixed_split(self.feature_vectors, self.target_values)
         self.assertIsInstance(score, float)
 
     def test_evaluate_classifier_using_repeated_cross_validation_returns_float(self):

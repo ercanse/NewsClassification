@@ -1,8 +1,6 @@
 """
-Script to preprocess NU.nl news articles.
-
-Resources:
-http://stackoverflow.com/questions/5486337/how-to-remove-stop-words-using-nltk-or-python?rq=1.
+Script to preprocess NU.nl news articles and save them to a separate collection.
+Preprocessing involves converting text to lowercase and removing stopwords.
 """
 import bson
 import re

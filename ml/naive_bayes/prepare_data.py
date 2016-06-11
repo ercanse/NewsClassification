@@ -1,3 +1,9 @@
+"""
+Prepares the collected news articles for use by a Naive Bayes classifier.
+First creates a vocabulary, which is the set of all words occurring in all articles.
+It then expresses each news article as a term vector, where the i-th entry indicates
+how many times word i from the vocabulary occurs in the article.
+"""
 from bson import DBRef
 from collections import Counter
 from pymongo import MongoClient
