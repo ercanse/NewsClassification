@@ -1,10 +1,10 @@
 from bson import ObjectId
 from unittest import TestCase
 
-from ml.naive_bayes.prepare_data import create_vocabulary, create_feature_vectors
+from learning.create_vocabulary_and_vectors import create_vocabulary, create_feature_vectors
 
 
-class TestPrepareData(TestCase):
+class TestCreateVocabularyAndVectors(TestCase):
     def setUp(self):
         self.articles = [
             {'_id': ObjectId(), 'title': 'a news article', 'text': 'very interesting content'},

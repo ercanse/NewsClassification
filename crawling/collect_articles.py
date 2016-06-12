@@ -2,13 +2,14 @@
 Script to retrieve news articles from NU.nl, insert them into a MongoDB database,
 and update them with the number of comments they have received.
 """
-
+import errno
+import logging
 import lxml.html as html_parser
+import os
 import urllib2
 import re
 
 from datetime import datetime, timedelta
-
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
@@ -36,7 +37,7 @@ def get_retrieved_urls():
     """
     retrieved_articles = collection.find({}, {'news_url': 1})
     retrieved_urls = [article['news_url'] for article in retrieved_articles]
-    print 'Found %d URLs already retrieved...\n' % len(retrieved_urls)
+    print_and_log_message('Found %d URLs already retrieved...\n' % len(retrieved_urls))
     return retrieved_urls
 
 
@@ -44,11 +45,11 @@ def get_front_page():
     """
     :return: page at URL 'base_url'
     """
-    print "Checking for articles on %s..." % base_url
+    print_and_log_message("Checking for articles on %s..." % base_url)
     try:
         return download_page(base_url)
     except urllib2.URLError:
-        print 'Could not access %s.' % base_url
+        print_and_log_message('Could not access %s.' % base_url, level=logging.WARNING)
         exit()
 
 
@@ -77,8 +78,8 @@ def get_articles(page, retrieved_urls):
                     if article is not None:
                         articles.append(article)
 
-    print "Retrieved %d new articles, skipped %d existing ones.\n" \
-          % (len(articles), num_links_processed - len(articles))
+    print_and_log_message("Retrieved %d new articles, skipped %d existing ones.\n" %
+                          (len(articles), num_links_processed - len(articles)))
     return articles
 
 
@@ -92,7 +93,7 @@ def process_article(url):
     try:
         article = download_page(url)
     except urllib2.URLError:
-        print 'Could not retrieve article from %s.' % url
+        print_and_log_message('Could not retrieve article from %s.' % url, level=logging.WARNING)
         return None
     # Extract contents
     article_contents = extract_article_contents(article)
@@ -151,12 +152,12 @@ def extract_article_text(article):
 def get_number_of_comments():
     """
     Retrieves the number of comments for each article published at least 24 hours ago.
-    Updates the corresponding article document with the retrieved number of documents.
+    Updates the corresponding article document with the retrieved number of comments.
     """
     date = datetime.now() - timedelta(days=1)
     # Get articles older than 24 hours which haven't yet had their number of comments updated
     articles = collection.find({'published': {'$lt': date}, 'num_comments': None})
-    print 'Updating number of comments for %d articles...' % articles.count()
+    print_and_log_message('Updating number of comments for %d articles...' % articles.count())
 
     num_comments_updated = 0
     for article in articles:
@@ -166,12 +167,13 @@ def get_number_of_comments():
         try:
             comments_page = download_page(comments_url)
         except urllib2.URLError:
-            print 'Could not retrieve comments page from %s.' % comments_url
+            print_and_log_message('Could not retrieve comments page from %s.' % comments_url, level=logging.WARNING)
             continue
         # Search for element containing number of comments
         comments_element = comments_page.find('//span[@class="bericht-reacties"]')
         if comments_element is None:
-            print 'Could not find comments, deleting article...'
+            print_and_log_message('Could not find comments, deleting article with id %s...' %
+                                  article['_id'], level=logging.WARNING)
             collection.delete_one({'_id': article['_id']})
             continue
 
@@ -182,7 +184,7 @@ def get_number_of_comments():
         num_comments_updated += 1
 
     if num_comments_updated > 0:
-        print 'Updated comments for %d articles.' % num_comments_updated
+        print_and_log_message('Updated number of comments for %d articles.' % num_comments_updated)
 
 
 def download_page(url):
@@ -200,10 +202,39 @@ def save_articles(articles):
     """
     if isinstance(articles, list) and len(articles) > 0:
         collection.insert_many(articles)
-        print "Inserted %d articles into '%s.%s'.\n" % (len(articles), db_name, collection_name)
+        print_and_log_message("Inserted %d articles into '%s.%s'.\n" % (len(articles), db_name, collection_name))
+
+
+def get_log_file_name():
+    """
+    :return: absolute path of log file to use, resolves to '/absolute/path/to/project/NewsClassification/log/log.txt'.
+    """
+    file_dir = os.path.dirname(os.path.realpath(__file__))
+    project_dir = os.path.abspath(os.path.join(file_dir, '..'))
+    log_dir = os.path.join(project_dir, 'log')
+    if not os.path.exists(log_dir):
+        try:
+            os.makedirs(log_dir)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
+    return os.path.join(log_dir, 'log.txt')
+
+
+def print_and_log_message(message, level=logging.INFO):
+    """
+    :param message: message to print and log
+    :param level: level at which to log message
+    """
+    print message
+    message = '%s: %s' % (datetime.now().strftime('%d-%m-%Y %H:%M:%S'), message)
+    logging.log(level=level, msg=message)
 
 
 if __name__ == '__main__':
+    # Initialize logging
+    log_file = get_log_file_name()
+    logging.basicConfig(filename=log_file, level=logging.DEBUG)
     # Retrieve articles and insert them into the database
     collect_articles()
     # For articles that are old enough, update the number of comments they have received
