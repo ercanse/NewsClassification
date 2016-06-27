@@ -15,12 +15,12 @@ and a script to train and evaluate classifiers on the data.
 
 ### What about results?
 Currently, when trained on a thousand articles, the _multinomial Naive Bayes_ classifier can classify 50% of the articles correctly
-and the _linear Support Vector Machine_ scores around 48%.
+while the _linear Support Vector Machine_ scores around 48%.
 
 ### What next?
 Some of the ideas for trying to improve classification performance are:
 * Collecting more data
-* Appling feature selection
+* Applying feature selection
 * Investigating the effects of training the classifiers with different parameters
 
 ### Further details?
