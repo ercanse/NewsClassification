@@ -16,6 +16,7 @@ With the examples given above, this would look like:
 """
 import numpy
 
+from numpy.linalg import norm
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
@@ -57,9 +58,14 @@ def get_feature_vectors_and_target_values(feature_vector_dicts, target_classes):
         raise TypeError("'feature_vector_dicts' must be a list.")
     if not isinstance(target_classes, dict):
         raise TypeError("'target_classes' must be a dict.")
+    if not len(feature_vector_dicts) == 0:
+        raise TypeError("'feature_vector_dicts' is empty.")
+    if not len(target_classes) == 0:
+        raise TypeError("'target_classes' is empty.")
 
-    print 'Preparing %d feature vectors of size %d each...' \
-          % (len(feature_vector_dicts), len(feature_vector_dicts[0]['feature_vector']))
+    num_vectors = len(feature_vector_dicts)
+    vector_size = len(feature_vector_dicts[0]['feature_vector'])
+    print 'Preparing %d feature vectors of size %d each...' % (num_vectors, vector_size)
     feature_vectors = []
     target_values = []
 
@@ -72,10 +78,25 @@ def get_feature_vectors_and_target_values(feature_vector_dicts, target_classes):
             if comments_range['start'] <= num_comments <= comments_range['end']:
                 return class_name
 
+    total_vector_length = 0
+    term_frequencies = [0] * vector_size
     for feature_vector_document in feature_vector_dicts:
-        feature_vectors.append(feature_vector_document['feature_vector'])
+        feature_vector = feature_vector_document['feature_vector']
+        # Add length of vector to total vector length
+        total_vector_length += norm(feature_vector)
+        # Keep track of the frequency of each term in dataset
+        for index, frequency in enumerate(feature_vector):
+            term_frequencies[index] += frequency
+
+        feature_vectors.append(feature_vector)
         # Add the class label corresponding to 'feature_vector' to 'target_values'
         target_values.append(get_class_for_number_of_comments(feature_vector_document['num_comments']))
+
+    # Apply document frequency thresholding (tp = (sqrt(1 + 8 * I1) - 1) / 2)
+
+    for feature_vector in feature_vectors:
+        # Normalize vector lengths
+        avg_vector_length = total_vector_length / num_vectors
 
     target_values_arr = numpy.array(target_values)
     return numpy.array(feature_vectors), target_values_arr
