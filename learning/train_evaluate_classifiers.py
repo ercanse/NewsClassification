@@ -31,7 +31,7 @@ def evaluate_classifier_using_repeated_cross_validation(classifier, feature_vect
     if not isinstance(n_folds, int):
         raise TypeError("'n_folds' must be an integer.")
 
-    print('\nEvaluating %s classifier with %d runs of %d-fold stratified cross-validation...' % \
+    print('\nEvaluating %s classifier with %d runs of %d-fold stratified cross-validation...' %
           (classifier, iterations, n_folds))
     scores = []
     for _ in range(iterations):

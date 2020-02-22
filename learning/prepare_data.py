@@ -58,7 +58,7 @@ def get_feature_vectors_and_target_values(feature_vector_dicts, target_classes):
     if not isinstance(target_classes, dict):
         raise TypeError("'target_classes' must be a dict.")
 
-    print('Preparing %d feature vectors of size %d each...' \
+    print('Preparing %d feature vectors of size %d each...'
           % (len(feature_vector_dicts), len(feature_vector_dicts[0]['feature_vector'])))
     feature_vectors = []
     target_values = []
