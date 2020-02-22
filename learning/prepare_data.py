@@ -29,11 +29,11 @@ def load_feature_vectors_and_classes(db_name):
         - dictionary where the keys are the class labels and the values are dictionaries of the form
         {start: <integer>, end: <integer>}
     """
-    print 'Loading feature vectors and target classes...'
+    print('Loading feature vectors and target classes...')
     db = Database(MongoClient(), db_name)
     collection_names = db.collection_names()
     if not ('naive_bayes' in collection_names and 'feature_vectors' in collection_names):
-        print 'Database missing collections needed to train classifier on.'
+        print('Database missing collections needed to train classifier on.')
         exit()
 
     target_classes = Collection(db, 'naive_bayes').find_one({'type': 'classes'})
@@ -58,8 +58,8 @@ def get_feature_vectors_and_target_values(feature_vector_dicts, target_classes):
     if not isinstance(target_classes, dict):
         raise TypeError("'target_classes' must be a dict.")
 
-    print 'Preparing %d feature vectors of size %d each...' \
-          % (len(feature_vector_dicts), len(feature_vector_dicts[0]['feature_vector']))
+    print('Preparing %d feature vectors of size %d each...' \
+          % (len(feature_vector_dicts), len(feature_vector_dicts[0]['feature_vector'])))
     feature_vectors = []
     target_values = []
 

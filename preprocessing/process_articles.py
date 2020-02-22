@@ -27,7 +27,7 @@ def get_articles_to_preprocess():
     """
     processed_articles = processed_collection.find({'article_id': {'$exists': 1}}, {'article_id': 1})
     processed_ids = [processed_article['article_id'].id for processed_article in processed_articles]
-    print 'Skipping %d preprocessed articles...' % len(processed_ids)
+    print('Skipping %d preprocessed articles...' % len(processed_ids))
     return collection.find({'_id': {'$nin': processed_ids}, 'num_comments': {'$ne': None}})
 
 
@@ -40,10 +40,10 @@ def preprocess(articles):
     try:
         stop_words = stopwords.words('dutch')
     except LookupError as e:
-        print e
+        print(e)
         exit()
 
-    print 'Preprocessing %d articles...' % articles.count()
+    print('Preprocessing %d articles...' % articles.count())
     processed_articles = []
     for article in articles:
         processed_article = dict(
@@ -55,7 +55,7 @@ def preprocess(articles):
         processed_articles.append(processed_article)
     if processed_articles:
         processed_collection.insert_many(processed_articles)
-        print 'Saved preprocessed articles.'
+        print('Saved preprocessed articles.')
 
 
 def preprocess_text(text, stop_words):
@@ -65,7 +65,7 @@ def preprocess_text(text, stop_words):
     :return: a lowercase version of text, split on punctuation marks and filtered by stop_words
     """
     text = text.lower()
-    text = re.split('\W+', text)
+    text = re.split('\\W+', text)
     return ' '.join(word for word in text if word not in stop_words)
 
 

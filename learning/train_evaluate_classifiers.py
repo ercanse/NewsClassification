@@ -6,7 +6,7 @@ import numpy
 
 from argparse import ArgumentParser
 from argparse import RawTextHelpFormatter
-from sklearn.cross_validation import cross_val_score, StratifiedKFold
+from sklearn.model_selection import cross_val_score, StratifiedKFold
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.svm import LinearSVC
 
@@ -31,15 +31,15 @@ def evaluate_classifier_using_repeated_cross_validation(classifier, feature_vect
     if not isinstance(n_folds, int):
         raise TypeError("'n_folds' must be an integer.")
 
-    print '\nEvaluating %s classifier with %d runs of %d-fold stratified cross-validation...' % \
-          (classifier, iterations, n_folds)
+    print('\nEvaluating %s classifier with %d runs of %d-fold stratified cross-validation...' % \
+          (classifier, iterations, n_folds))
     scores = []
-    for _ in xrange(iterations):
+    for _ in range(iterations):
         k_fold = StratifiedKFold(target_values, n_folds=n_folds, shuffle=True)
         scores.append(cross_val_score(classifier, feature_vectors, target_values, cv=k_fold).mean())
 
     score = sum(scores) / float(len(scores))
-    print 'Mean cross-validation score: %f' % score
+    print('Mean cross-validation score: %f' % score)
     return score
 
 

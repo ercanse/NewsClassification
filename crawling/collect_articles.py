@@ -6,13 +6,14 @@ import errno
 import logging
 import lxml.html as html_parser
 import os
-import urllib2
+import urllib.request
 import re
 
 from datetime import datetime, timedelta
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
+from urllib.error import URLError
 
 db_name = 'nu'
 collection_name = 'articles'
@@ -48,7 +49,7 @@ def get_front_page():
     print_and_log_message("Checking for articles on %s..." % base_url)
     try:
         return download_page(base_url)
-    except urllib2.URLError:
+    except urllib.error.URLError:
         print_and_log_message('Could not access %s.' % base_url, level=logging.WARNING)
         exit()
 
@@ -88,11 +89,11 @@ def process_article(url):
     :param url: URL of article to process
     :return: dict containing article contents
     """
-    print 'Retrieving article from %s...' % url
+    print('Retrieving article from %s...' % url)
     # Retrieve article
     try:
         article = download_page(url)
-    except urllib2.URLError:
+    except URLError:
         print_and_log_message('Could not retrieve article from %s.' % url, level=logging.WARNING)
         return None
     # Extract contents
@@ -121,7 +122,7 @@ def extract_article_contents(article):
 
     # Check whether the comments URL is valid
     if comments_url.startswith('http://www.nujij.nl/jij.lynkx/?u=http') and 'slideshow' in comments_url:
-        print 'Could not retrieve comments URL.'
+        print('Could not retrieve comments URL.')
         return None
     else:
         return dict(
@@ -163,10 +164,10 @@ def get_number_of_comments():
     for article in articles:
         comments_url = article['comments_url']
         # Retrieve comments page
-        print 'Retrieving comments from %s...' % comments_url
+        print('Retrieving comments from %s...' % comments_url)
         try:
             comments_page = download_page(comments_url)
-        except urllib2.URLError:
+        except URLError:
             print_and_log_message('Could not retrieve comments page from %s.' % comments_url, level=logging.WARNING)
             continue
         # Search for element containing number of comments
@@ -192,7 +193,7 @@ def download_page(url):
     :param url: URL of page to retrieve
     :return: web page at URL url
     """
-    return html_parser.parse(urllib2.urlopen(url))
+    return html_parser.parse(urllib.request.urlopen(url))
 
 
 def save_articles(articles):
@@ -226,7 +227,7 @@ def print_and_log_message(message, level=logging.INFO):
     :param message: message to print and log
     :param level: level at which to log message
     """
-    print message
+    print(message)
     message = '%s: %s' % (datetime.now().strftime('%d-%m-%Y %H:%M:%S'), message)
     logging.log(level=level, msg=message)
 
