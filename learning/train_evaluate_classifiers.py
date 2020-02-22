@@ -35,7 +35,7 @@ def evaluate_classifier_using_repeated_cross_validation(classifier, feature_vect
           (classifier, iterations, n_folds))
     scores = []
     for _ in range(iterations):
-        k_fold = StratifiedKFold(target_values, n_folds=n_folds, shuffle=True)
+        k_fold = StratifiedKFold(n_splits=n_folds, shuffle=True)
         scores.append(cross_val_score(classifier, feature_vectors, target_values, cv=k_fold).mean())
 
     score = sum(scores) / float(len(scores))

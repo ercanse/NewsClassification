@@ -68,7 +68,7 @@ def get_feature_vectors_and_target_values(feature_vector_dicts, target_classes):
         :param num_comments: number of comments to determine class for
         :return: class within which the specified number of comments belongs to ('very low', 'high', etc.)
         """
-        for class_name, comments_range in target_classes.iteritems():
+        for class_name, comments_range in target_classes.items():
             if comments_range['start'] <= num_comments <= comments_range['end']:
                 return class_name
 

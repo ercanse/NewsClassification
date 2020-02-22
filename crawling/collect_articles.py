@@ -138,7 +138,7 @@ def extract_article_text(article):
     return text
 
 
-def get_number_of_comments():
+def update_number_of_comments():
     """
     Retrieves the number of comments for each article published at least 24 hours ago.
     Updates the corresponding article document with the retrieved number of comments.
@@ -228,4 +228,4 @@ if __name__ == '__main__':
     # Retrieve articles and insert them into the database
     collect_articles()
     # For articles that are old enough, update the number of comments they have received
-    get_number_of_comments()
+    update_number_of_comments()
