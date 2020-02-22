@@ -36,8 +36,8 @@ def get_retrieved_urls():
     """
     :return: list of URLs of all articles in the database
     """
-    retrieved_articles = collection.find({}, {'news_url': 1})
-    retrieved_urls = [article['news_url'] for article in retrieved_articles]
+    retrieved_articles = collection.find({}, {'url': 1})
+    retrieved_urls = [article['url'] for article in retrieved_articles]
     print_and_log_message('Found %d URLs already retrieved...\n' % len(retrieved_urls))
     return retrieved_urls
 
@@ -99,7 +99,7 @@ def process_article(url):
     # Extract contents
     article_contents = extract_article_contents(article)
     if article_contents is not None:
-        article_contents['news_url'] = url
+        article_contents['url'] = url
     return article_contents
 
 
@@ -109,29 +109,19 @@ def extract_article_contents(article):
     :return: dict containing article contents
     """
     # Extract publication date
-    published = article.find('//span[@class="published"]//span[@class="small"]').text.strip()
+    published = article.find('//span[@class="pubdate small"]').text.strip()
     published_date = datetime.strptime(published, '%d-%m-%y %H:%M')
     # Extract title
-    title = article.find('//div[@class="title"]//h1[@class="fluid"]').text.strip()
+    title = article.find('//h1[@class="title fluid"]').text.strip()
     # Extract article text
     text = extract_article_text(article)
-    # Extract the NUjij link used for commenting
-    comments_url = article.find(
-        '//ul[@class="social-buttons"]//li[@class="nujij"]//a[@class="tracksocial"]'
-    ).attrib['href']
 
-    # Check whether the comments URL is valid
-    if comments_url.startswith('http://www.nujij.nl/jij.lynkx/?u=http') and 'slideshow' in comments_url:
-        print('Could not retrieve comments URL.')
-        return None
-    else:
-        return dict(
-            published=published_date,
-            comments_url=comments_url,
-            title=title,
-            text=text,
-            num_comments=None
-        )
+    return dict(
+        published=published_date,
+        title=title,
+        text=text,
+        num_comments=None
+    )
 
 
 def extract_article_text(article):
@@ -139,10 +129,8 @@ def extract_article_text(article):
     :param article: article to extract text of
     :return: string containing all text of article
     """
-    # Extract excerpt
-    text = article.find('//div[@class="item-excerpt"]').text.strip()
-    # Extract text
-    text_elements = article.xpath('//div[@class="zone"]//div[@class="block-content"]//p')
+    text = ''
+    text_elements = article.xpath('//div[@class="block-wrapper"]//div[@class="block-content"]//p')
     for text_element in text_elements:
         element_text = text_element.text
         if element_text:
@@ -162,16 +150,17 @@ def get_number_of_comments():
 
     num_comments_updated = 0
     for article in articles:
-        comments_url = article['comments_url']
+        article_url = article['url']
         # Retrieve comments page
-        print('Retrieving comments from %s...' % comments_url)
+        print('Retrieving comments from %s...' % article_url)
         try:
-            comments_page = download_page(comments_url)
+            article_page = download_page(article_url)
         except URLError:
-            print_and_log_message('Could not retrieve comments page from %s.' % comments_url, level=logging.WARNING)
+            print_and_log_message('Could not retrieve article page from %s.' % article_url, level=logging.WARNING)
             continue
-        # Search for element containing number of comments
-        comments_element = comments_page.find('//span[@class="bericht-reacties"]')
+
+        # Extract the number of comments
+        comments_element = article_page.find('//span[@class="comments-count"]')
         if comments_element is None:
             print_and_log_message('Could not find comments, deleting article with id %s...' %
                                   article['_id'], level=logging.WARNING)
@@ -180,7 +169,7 @@ def get_number_of_comments():
 
         # Update article with the number of comments it has received
         comments_text = comments_element.text.strip()
-        num_comments = int(comments_text.split(' ')[0])
+        num_comments = int(comments_text)
         collection.update_one({'_id': article['_id']}, {'$set': {'num_comments': num_comments}})
         num_comments_updated += 1
 
