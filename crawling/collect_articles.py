@@ -38,7 +38,7 @@ def get_retrieved_urls():
     """
     retrieved_articles = collection.find({}, {'url': 1})
     retrieved_urls = [article['url'] for article in retrieved_articles]
-    print_and_log_message('Found %d URLs already retrieved...\n' % len(retrieved_urls))
+    logging.info('Found %d URLs already retrieved...\n' % len(retrieved_urls))
     return retrieved_urls
 
 
@@ -46,11 +46,11 @@ def get_front_page():
     """
     :return: page at URL 'base_url'
     """
-    print_and_log_message("Checking for articles on %s..." % base_url)
+    logging.info("Checking for articles on %s..." % base_url)
     try:
         return download_page(base_url)
     except urllib.error.URLError:
-        print_and_log_message('Could not access %s.' % base_url, level=logging.WARNING)
+        logging.info('Could not access %s.' % base_url, level=logging.WARNING)
         exit()
 
 
@@ -70,7 +70,7 @@ def get_articles(page, retrieved_urls):
         if len(values) == 2:
             url = values[0]
             # Check whether URL belongs to a news item
-            if 'advertorial' not in url and re.match('/.+/\d+/.+', url):
+            if 'advertorial' not in url and re.match('/.+/\\d+/.+', url):
                 num_links_processed += 1
                 article_url = '%s%s' % (base_url, url)
                 # Skip if already processed
@@ -79,8 +79,8 @@ def get_articles(page, retrieved_urls):
                     if article is not None:
                         articles.append(article)
 
-    print_and_log_message("Retrieved %d new articles, skipped %d existing ones.\n" %
-                          (len(articles), num_links_processed - len(articles)))
+    logging.info("Retrieved %d new articles, skipped %d existing ones.\n" %
+                 (len(articles), num_links_processed - len(articles)))
     return articles
 
 
@@ -94,7 +94,7 @@ def process_article(url):
     try:
         article = download_page(url)
     except URLError:
-        print_and_log_message('Could not retrieve article from %s.' % url, level=logging.WARNING)
+        logging.warning('Could not retrieve article from %s.' % url, level=logging.WARNING)
         return None
     # Extract contents
     article_contents = extract_article_contents(article)
@@ -146,7 +146,7 @@ def update_number_of_comments():
     date = datetime.now() - timedelta(days=1)
     # Get articles older than 24 hours which haven't yet had their number of comments updated
     articles = collection.find({'published': {'$lt': date}, 'num_comments': None})
-    print_and_log_message('Updating number of comments for %d articles...' % articles.count())
+    logging.info('Updating number of comments for %d articles...' % articles.count())
 
     num_comments_updated = 0
     for article in articles:
@@ -156,14 +156,14 @@ def update_number_of_comments():
         try:
             article_page = download_page(article_url)
         except URLError:
-            print_and_log_message('Could not retrieve article page from %s.' % article_url, level=logging.WARNING)
+            logging.warning('Could not retrieve article page from %s.' % article_url, level=logging.WARNING)
             continue
 
         # Extract the number of comments
         comments_element = article_page.find('//span[@class="comments-count"]')
         if comments_element is None:
-            print_and_log_message('Could not find comments, deleting article with id %s...' %
-                                  article['_id'], level=logging.WARNING)
+            logging.warning('Could not find comments, deleting article with id %s...' %
+                            article['_id'], level=logging.WARNING)
             collection.delete_one({'_id': article['_id']})
             continue
 
@@ -174,7 +174,7 @@ def update_number_of_comments():
         num_comments_updated += 1
 
     if num_comments_updated > 0:
-        print_and_log_message('Updated number of comments for %d articles.' % num_comments_updated)
+        logging.info('Updated number of comments for %d articles.' % num_comments_updated)
 
 
 def download_page(url):
@@ -192,7 +192,7 @@ def save_articles(articles):
     """
     if isinstance(articles, list) and len(articles) > 0:
         collection.insert_many(articles)
-        print_and_log_message("Inserted %d articles into '%s.%s'.\n" % (len(articles), db_name, collection_name))
+        logging.info("Inserted %d articles into '%s.%s'.\n" % (len(articles), db_name, collection_name))
 
 
 def get_log_file_name():
@@ -211,20 +211,15 @@ def get_log_file_name():
     return os.path.join(log_dir, 'log.txt')
 
 
-def print_and_log_message(message, level=logging.INFO):
-    """
-    :param message: message to print and log
-    :param level: level at which to log message
-    """
-    print(message)
-    message = '%s: %s' % (datetime.now().strftime('%d-%m-%Y %H:%M:%S'), message)
-    logging.log(level=level, msg=message)
-
-
 if __name__ == '__main__':
     # Initialize logging
     log_file = get_log_file_name()
-    logging.basicConfig(filename=log_file, level=logging.DEBUG)
+    logging.basicConfig(
+        filename=log_file,
+        format='%(asctime)s.%(msecs)03d %(levelname)s {%(module)s} [%(funcName)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        level=logging.INFO
+    )
     # Retrieve articles and insert them into the database
     collect_articles()
     # For articles that are old enough, update the number of comments they have received
