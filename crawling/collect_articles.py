@@ -50,7 +50,7 @@ def get_front_page():
     try:
         return download_page(base_url)
     except urllib.error.URLError:
-        logging.info('Could not access %s.' % base_url, level=logging.WARNING)
+        logging.error('Could not access %s.' % base_url)
         exit()
 
 
@@ -67,10 +67,10 @@ def get_articles(page, retrieved_urls):
 
     for url_element in url_elements:
         values = url_element.values()
-        if len(values) == 2:
+        if len(values) >= 2:
             url = values[0]
             # Check whether URL belongs to a news item
-            if 'advertorial' not in url and re.match('/.+/\\d+/.+', url):
+            if 'advertorial' not in url and 'video' not in url and re.match('/.+/\\d+/.+', url):
                 num_links_processed += 1
                 article_url = '%s%s' % (base_url, url)
                 # Skip if already processed
@@ -94,10 +94,14 @@ def process_article(url):
     try:
         article = download_page(url)
     except URLError:
-        logging.warning('Could not retrieve article from %s.' % url, level=logging.WARNING)
+        logging.warning('Could not retrieve article from %s.' % url)
         return None
     # Extract contents
-    article_contents = extract_article_contents(article)
+    article_contents = None
+    try:
+        article_contents = extract_article_contents(article)
+    except AttributeError:
+        logging.warning('Could not process article on %s.' % url)
     if article_contents is not None:
         article_contents['url'] = url
     return article_contents
@@ -156,14 +160,14 @@ def update_number_of_comments():
         try:
             article_page = download_page(article_url)
         except URLError:
-            logging.warning('Could not retrieve article page from %s.' % article_url, level=logging.WARNING)
+            logging.warning('Could not retrieve article page from %s.' % article_url)
             continue
 
         # Extract the number of comments
         comments_element = article_page.find('//span[@class="comments-count"]')
         if comments_element is None:
             logging.warning('Could not find comments, deleting article with id %s...' %
-                            article['_id'], level=logging.WARNING)
+                            article['_id'])
             collection.delete_one({'_id': article['_id']})
             continue
 
