@@ -155,8 +155,7 @@ def update_number_of_comments():
     num_comments_updated = 0
     for article in articles:
         article_url = article['url']
-        # Retrieve comments page
-        print('Retrieving comments from %s...' % article_url)
+        logging.info('Retrieving comments from %s...' % article_url)
         try:
             article_page = download_page(article_url)
         except URLError:
@@ -173,8 +172,14 @@ def update_number_of_comments():
 
         # Update article with the number of comments it has received
         comments_text = comments_element.text.strip()
-        num_comments = int(comments_text)
-        collection.update_one({'_id': article['_id']}, {'$set': {'num_comments': num_comments}})
+        if 'K' in comments_text:
+            comments_text = comments_text[:-1]
+            num_comments = int(float(comments_text) * 1000)
+        else:
+            num_comments = int(comments_text)
+        article_id = article['_id']
+        collection.update_one({'_id': article_id}, {'$set': {'num_comments': num_comments}})
+        logging.info('Found %d comments for article with id %s...' % (num_comments, article_id))
         num_comments_updated += 1
 
     if num_comments_updated > 0:
