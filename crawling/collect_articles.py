@@ -4,16 +4,16 @@ and update them with the number of comments they have received.
 """
 import errno
 import logging
-import lxml.html as html_parser
 import os
-import urllib.request
 import re
-
+import urllib.request
 from datetime import datetime, timedelta
+from urllib.error import URLError
+
+import lxml.html as html_parser
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
-from urllib.error import URLError
 
 db_name = 'nu'
 collection_name = 'articles'
@@ -21,6 +21,7 @@ db = Database(MongoClient(), db_name)
 collection = Collection(db, collection_name)
 
 base_url = 'http://www.nu.nl'
+comments_span_class = '//span[@class="comments-link-wrapper__comments-link__comments-count"]'
 
 
 def collect_articles():
@@ -78,6 +79,7 @@ def get_articles(page, retrieved_urls):
                     article = process_article('%s%s' % (base_url, url))
                     if article is not None:
                         articles.append(article)
+                        retrieved_urls.append(article_url)
 
     logging.info("Retrieved %d new articles, skipped %d existing ones.\n" %
                  (len(articles), num_links_processed - len(articles)))
@@ -90,13 +92,13 @@ def process_article(url):
     :return: dict containing article contents
     """
     print('Retrieving article from %s...' % url)
-    # Retrieve article
+
     try:
         article = download_page(url)
     except URLError:
         logging.warning('Could not retrieve article from %s.' % url)
         return None
-    # Extract contents
+
     article_contents = None
     try:
         article_contents = extract_article_contents(article)
@@ -112,12 +114,9 @@ def extract_article_contents(article):
     :param article: article to extract contents of
     :return: dict containing article contents
     """
-    # Extract publication date
     published = article.find('//span[@class="pubdate small"]').text.strip()
     published_date = datetime.strptime(published, '%d-%m-%y %H:%M')
-    # Extract title
     title = article.find('//h1[@class="title fluid"]').text.strip()
-    # Extract article text
     text = extract_article_text(article)
 
     return dict(
@@ -163,7 +162,7 @@ def update_number_of_comments():
             continue
 
         # Extract the number of comments
-        comments_element = article_page.find('//span[@class="comments-count"]')
+        comments_element = article_page.find(comments_span_class)
         if comments_element is None:
             logging.warning('Could not find comments, deleting article with id %s...' %
                             article['_id'])
@@ -177,6 +176,7 @@ def update_number_of_comments():
             num_comments = int(float(comments_text) * 1000)
         else:
             num_comments = int(comments_text)
+
         article_id = article['_id']
         collection.update_one({'_id': article_id}, {'$set': {'num_comments': num_comments}})
         logging.info('Found %d comments for article with id %s...' % (num_comments, article_id))
@@ -221,7 +221,6 @@ def get_log_file_name():
 
 
 if __name__ == '__main__':
-    # Initialize logging
     log_file = get_log_file_name()
     logging.basicConfig(
         filename=log_file,
@@ -229,7 +228,5 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S',
         level=logging.INFO
     )
-    # Retrieve articles and insert them into the database
     collect_articles()
-    # For articles that are old enough, update the number of comments they have received
     update_number_of_comments()
