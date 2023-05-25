@@ -1,4 +1,4 @@
-joblib==0.14.1
+joblib==1.2.0
 lxml==4.5.0
 mongoengine==0.10.6
 nltk==3.6.6
